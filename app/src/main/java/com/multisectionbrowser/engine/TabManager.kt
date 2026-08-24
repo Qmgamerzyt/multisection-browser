@@ -176,14 +176,24 @@ class TabManager(
         favicon: String? = null
     ) {
         withContext(Dispatchers.IO) {
-            val tab = repository.getTab(tabId)?.toDomain() ?: return@withContext
+            val existingTab = repository.getTab(tabId)
+            if (existingTab == null) return@withContext
+            val tab = existingTab.toDomain()
+            
+            val newTitle = title ?: tab.title
+            val newUrl = url ?: tab.url
+            val newIsLoading = isLoading ?: tab.isLoading
+            val newCanGoBack = canGoBack ?: tab.canGoBack
+            val newCanGoForward = canGoForward ?: tab.canGoForward
+            val newFavicon = favicon ?: tab.favicon
+            
             val updatedTab = tab.copy(
-                title = title ?: tab.title,
-                url = url ?: tab.url,
-                isLoading = isLoading ?? tab.isLoading,
-                canGoBack = canGoBack ?? tab.canGoBack,
-                canGoForward = canGoForward ?? tab.canGoForward,
-                favicon = favicon ?? tab.favicon
+                title = newTitle,
+                url = newUrl,
+                isLoading = newIsLoading,
+                canGoBack = newCanGoBack,
+                canGoForward = newCanGoForward,
+                favicon = newFavicon
             )
             repository.updateTab(updatedTab)
         }

@@ -127,8 +127,8 @@ fun ExtensionsScreen(
             } else {
                 extensions.forEach { ext ->
                     val setting = sessionSettings.firstOrNull { it.extensionId == ext.id }
-                    val isEnabled = setting?.isEnabled ?? true
-                    val triggerMode = setting?.triggerMode ?: SessionExtensionSettingsEntity.TRIGGER_AUTO
+                    val isEnabled = if (setting != null) setting.isEnabled else true
+                    val triggerMode = if (setting != null) setting.triggerMode else SessionExtensionSettingsEntity.TRIGGER_AUTO
 
                     ExtensionCard(
                         extension = ext,
