@@ -46,8 +46,6 @@ fun FloatingBall(
                     },
                     onDragEnd = {
                         isDragging = false
-                        // Snap to edges
-                        // This would be better with actual screen dimensions
                     },
                     onTap = { onClick() }
                 )

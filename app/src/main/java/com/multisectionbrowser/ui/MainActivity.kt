@@ -23,12 +23,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.observeAsState
 import com.multisectionbrowser.engine.BrowserSession
 import com.multisectionbrowser.engine.BrowserTab
-import com.multisectionbrowser.engine.SessionManager
-import com.multisectionbrowser.engine.TabManager
 import com.multisectionbrowser.ui.components.FloatingBall
 import com.multisectionbrowser.viewmodel.BrowserViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoSession
 
 class MainActivity : ComponentActivity() {
@@ -51,8 +53,10 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     var showSessionPanel by remember { mutableStateOf(false) }
     var headerVisible by remember { mutableStateOf(true) }
 
-    val activeSession = viewModel.activeSession
-    val activeTab = viewModel.activeTab
+    val sessions by viewModel.sessions.observeAsState(initialValue = emptyList())
+    val activeSession by viewModel.activeSession.observeAsState<BrowserSession?>(null)
+    val tabs by viewModel.tabs.observeAsState(initialValue = emptyList())
+    val activeTab by viewModel.activeTab.observeAsState<BrowserTab?>(null)
     val geckoSession = activeTab?.let { viewModel.getGeckoSession(it.id) }
 
     Column(
@@ -64,20 +68,20 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 // Session Switcher
                 SessionSwitcher(
-                    sessions = viewModel.sessions,
+                    sessions = sessions,
                     activeSessionId = activeSession?.id,
                     onSessionClick = { id ->
                         viewModel.setActiveSession(id)
                         showSessionPanel = false
                     },
                     onNewSession = {
-                        viewModel.createSession("Session ${viewModel.sessions.size + 1}")
+                        viewModel.createSession("Session ${sessions.size + 1}")
                     }
                 )
 
                 // Tab Bar
                 TabBar(
-                    tabs = viewModel.tabsForActiveSession,
+                    tabs = tabs,
                     activeTabId = activeTab?.id,
                     onTabClick = { id -> viewModel.setActiveTab(id) },
                     onTabClose = { id -> viewModel.closeTab(id) },
@@ -94,10 +98,10 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     onSubmit = { url ->
                         activeTab?.let { viewModel.loadUrl(it.id, url) }
                     },
-                    onGoBack = { activeTab?.let { viewModel.goBack(it.id) } },
-                    onGoForward = { activeTab?.let { viewModel.goForward(it.id) } },
-                    onRefresh = { activeTab?.let { viewModel.reload(it.id) } },
-                    onStop = { activeTab?.let { viewModel.stop(it.id) } },
+                    onGoBack = { activeTab?.let { id -> CoroutineScope(Dispatchers.Main).launch { viewModel.goBack(id) } } },
+                    onGoForward = { activeTab?.let { id -> CoroutineScope(Dispatchers.Main).launch { viewModel.goForward(id) } } },
+                    onRefresh = { activeTab?.let { id -> CoroutineScope(Dispatchers.Main).launch { viewModel.reload(id) } } },
+                    onStop = { activeTab?.let { id -> CoroutineScope(Dispatchers.Main).launch { viewModel.stop(id) } } },
                     onShowScriptDialog = { showScriptDialog = true }
                 )
             }

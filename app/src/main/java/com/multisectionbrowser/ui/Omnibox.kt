@@ -1,5 +1,6 @@
 package com.multisectionbrowser.ui
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,9 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,17 +24,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.keyboard.KeyboardOptions
 import androidx.compose.ui.input.keyboard.KeyboardType
+import androidx.compose.ui.input.keyboard.ImeAction
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardAction
 import androidx.compose.ui.text.input.KeyboardController
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,9 +53,7 @@ fun Omnibox(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val keyboardController = LocalContext.current.getSystemService(Context.INPUT_METHOD_SERVICE) as KeyboardController
     var text by remember { mutableStateOf(url) }
-    var showScriptOption by remember { mutableStateOf(false) }
 
     val isUrl = text.startsWith("http://") || text.startsWith("https://") || text.startsWith("file://") || text.contains("://")
 
@@ -105,28 +102,14 @@ fun Omnibox(
                     keyboardType = KeyboardType.Url,
                     imeAction = ImeAction.Go
                 ),
-                keyboardActions = object : KeyboardController {
-                    override fun onKeyEvent(event: android.view.KeyEvent): Boolean = false
-                    override fun sendKeyEvent(event: android.view.KeyEvent): Boolean = false
-                    override fun hideKeyboard() {
-                        keyboardController.hideSoftInputFromWindow(
-                            (context as android.app.Activity).window.decorView.windowToken, 0
-                        )
-                    }
-                    override fun showKeyboard() {
-                        keyboardController.showSoftInput(
-                            (context as android.app.Activity).window.decorView, 0
-                        )
-                    }
-                },
-                visualTransformation = VisualTransformation { text ->
-                    text
+                visualTransformation = VisualTransformation { textFieldValue ->
+                    textFieldValue
                 },
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 12.dp, end = 48.dp, top = 8.dp, bottom = 8.dp),
-                textStyle = androidx.compose.ui.text.TextStyle(
+                textStyle = TextStyle(
                     fontSize = 16.sp,
                     color = Color.Black
                 ),

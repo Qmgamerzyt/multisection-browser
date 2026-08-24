@@ -102,9 +102,7 @@ fun GeckoViewScreen(
             }
 
             contentDelegate = object : GeckoSession.ContentDelegate() {
-                override fun onFavicon(session: GeckoSession, icon: Bitmap?) {
-                    // Favicon handling could be added here
-                }
+                // onFavicon not available in this GeckoView version
             }
         }
         onDispose {
