@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">MultiSection Browser</string>
+    <string name="new_tab">New Tab</string>
+    <string name="search_or_enter_url">Search or enter URL</string>
+    <string name="go">Go</string>
+    <string name="session">Session</string>
+    <string name="new_session">New Session</string>
+    <string name="settings">Settings</string>
+    <string name="extensions">Extensions</string>
+    <string name="close">Close</string>
+    <string name="load_url">Load URL</string>
+    <string name="javascript">JavaScript</string>
+    <string name="run_javascript">Run JavaScript</string>
+    <string name="session_a">Session A</string>
+    <string name="session_b">Session B</string>
+</resources>
