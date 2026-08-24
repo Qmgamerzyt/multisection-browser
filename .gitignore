@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+/app/build/
+/app/.gradle/
+
+# Local configuration
+local.properties
+*.iml
+.idea/
+
+# Android
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kotlin
+*.kt.html
+
+# Temporary
+*.tmp
+*.temp
