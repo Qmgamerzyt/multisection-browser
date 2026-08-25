@@ -71,7 +71,7 @@ class MultiSessionBrowserApp : Application() {
         }
         
         // Slow path - wait for initialization to complete
-        return runtimeMutex.withLock {
+        return kotlinx.coroutines.sync.withLock(runtimeMutex) {
             if (geckoRuntime != null) {
                 return@withLock geckoRuntime!!
             }
