@@ -1,7 +1,6 @@
 package com.multisectionbrowser.viewmodel
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -11,7 +10,6 @@ import com.multisectionbrowser.engine.BrowserTab
 import com.multisectionbrowser.engine.SessionManager
 import com.multisectionbrowser.engine.TabManager
 import kotlinx.coroutines.launch
-import org.mozilla.geckoview.GeckoSession
 
 class BrowserViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -30,170 +28,125 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private val _activeTab = MutableLiveData<BrowserTab?>()
     val activeTab: LiveData<BrowserTab?> = _activeTab
 
-    private val _urlInput = MutableLiveData<String>("")
-    val urlInput: LiveData<String> = _urlInput
+    /** False until first session+tab are restored/created — drives the splash gate. */
+    private val _booted = MutableLiveData(false)
+    val booted: LiveData<Boolean> = _booted
 
     init {
+        tabManager.uiListener = object : TabManager.UiListener {
+            override fun onTabChanged(tabId: String) { refreshActiveTab(tabId) }
+        }
         loadInitialData()
-    }
-
-    private fun refreshSessionsBlocking() {
-        _sessions.value = _sessions.value
     }
 
     private fun loadInitialData() {
         viewModelScope.launch {
-            val sessions = sessionManager.getAllSessions()
-            _sessions.postValue(sessions)
-            val active = sessionManager.getActiveSession()
-            _activeSession.postValue(active)
-            if (active != null) {
-                val tabs = tabManager.getAllTabs(active.id)
-                _tabs.postValue(tabs)
-                _activeTab.postValue(tabManager.getActiveTab(active.id))
-            } else {
-                // First launch: create default session + tab
-                val s = sessionManager.createSession("Default")
-                sessionManager.setActiveSession(s.id)
-                tabManager.createTab(s.id)
-                _sessions.postValue(sessionManager.getAllSessions())
-                _activeSession.postValue(s)
-                _tabs.postValue(tabManager.getAllTabs(s.id))
-                _activeTab.postValue(tabManager.getActiveTab(s.id))
+            try {
+                var active = sessionManager.getActiveSession()
+                if (active == null) {
+                    active = sessionManager.createSession("Session 1")
+                    sessionManager.setActiveSession(active.id)
+                }
+                if (tabManager.getAllTabs(active.id).isEmpty()) {
+                    tabManager.createTab(active.id)
+                }
+                publishState(active.id)
+            } finally {
+                _booted.postValue(true)
             }
         }
     }
 
-    private suspend fun reloadUi(sessionId: String?) {
+    private fun refreshActiveTab(tabId: String) {
+        viewModelScope.launch {
+            tabManager.getTab(tabId)?.let {
+                if (_activeTab.value?.id == tabId) _activeTab.postValue(it)
+                val sid = it.sessionId
+                _tabs.postValue(tabManager.getAllTabs(sid))
+            }
+        }
+    }
+
+    private suspend fun publishState(sessionId: String?) {
         _sessions.postValue(sessionManager.getAllSessions())
-        if (sessionId != null) {
-            _activeSession.postValue(sessionManager.getSession(sessionId))
-            _tabs.postValue(tabManager.getAllTabs(sessionId))
-            _activeTab.postValue(tabManager.getActiveTab(sessionId))
+        if (sessionId == null) return
+        _activeSession.postValue(sessionManager.getSession(sessionId))
+        _tabs.postValue(tabManager.getAllTabs(sessionId))
+        _activeTab.postValue(tabManager.getActiveTab(sessionId))
+    }
+
+    // ------------------------------------------------------------ sessions
+
+    fun createSession(name: String) = viewModelScope.launch {
+        val s = sessionManager.createSession(name.ifBlank { "Session" })
+        sessionManager.setActiveSession(s.id)
+        tabManager.createTab(s.id)
+        publishState(s.id)
+    }
+
+    fun switchSession(sessionId: String) = viewModelScope.launch {
+        sessionManager.setActiveSession(sessionId)
+        if (tabManager.getAllTabs(sessionId).isEmpty()) tabManager.createTab(sessionId)
+        publishState(sessionId)
+    }
+
+    fun deleteSession(sessionId: String) = viewModelScope.launch {
+        sessionManager.deleteSession(sessionId)
+        val remaining = sessionManager.getAllSessions()
+        if (remaining.isEmpty()) {
+            val s = sessionManager.createSession("Session 1")
+            sessionManager.setActiveSession(s.id)
+            tabManager.createTab(s.id)
+            publishState(s.id)
+        } else {
+            val sid = sessionManager.getActiveSession()?.id ?: remaining.first().id
+            sessionManager.setActiveSession(sid)
+            publishState(sid)
         }
     }
 
-    fun createSession(name: String) {
-        viewModelScope.launch {
-            val session = sessionManager.createSession(name)
-            sessionManager.setActiveSession(session.id)
-            tabManager.createTab(session.id)
-            reloadUi(session.id)
-        }
+    fun renameSession(sessionId: String, newName: String) = viewModelScope.launch {
+        sessionManager.renameSession(sessionId, newName.ifBlank { "Session" })
+        publishState(_activeSession.value?.id)
     }
 
-    fun setActiveSession(sessionId: String) {
-        viewModelScope.launch {
-            sessionManager.setActiveSession(sessionId)
-            reloadUi(sessionId)
-        }
+    // ------------------------------------------------------------ tabs
+
+    fun createTab(url: String = "") = viewModelScope.launch {
+        val sid = _activeSession.value?.id ?: return@launch
+        tabManager.createTab(sid, url)
+        publishState(sid)
     }
 
-    fun deleteSession(sessionId: String) {
-        viewModelScope.launch {
-            sessionManager.deleteSession(sessionId)
-            val active = sessionManager.getActiveSession()
-            reloadUi(active?.id)
-        }
+    fun closeTab(tabId: String) = viewModelScope.launch {
+        val sid = _activeSession.value?.id ?: return@launch
+        tabManager.closeTab(tabId)
+        publishState(sid)
     }
 
-    fun createTab(url: String = "") {
-        viewModelScope.launch {
-            val sid = _activeSession.value?.id ?: return@launch
-            tabManager.createTab(sid, url)
-            reloadUi(sid)
-        }
+    fun switchTab(tabId: String) = viewModelScope.launch {
+        tabManager.setActiveTab(tabId)
+        publishState(_activeSession.value?.id)
     }
 
-    fun closeTab(tabId: String) {
-        viewModelScope.launch {
-            val sid = _activeSession.value?.id
-            tabManager.closeTab(tabId)
-            // If no tabs remain in this session, create one
-            if (sid != null && tabManager.getAllTabs(sid).isEmpty()) {
-                tabManager.createTab(sid)
-            }
-            reloadUi(_activeSession.value?.id)
-        }
+    // ------------------------------------------------------------ navigation
+
+    fun submitUrl(raw: String) {
+        val t = _activeTab.value ?: return
+        viewModelScope.launch { tabManager.loadUrl(t.id, raw) }
     }
 
-    fun setActiveTab(tabId: String) {
-        viewModelScope.launch {
-            tabManager.setActiveTab(tabId)
-            reloadUi(_activeSession.value?.id)
-        }
-    }
+    fun goBack()    { _activeTab.value?.let { viewModelScope.launch { tabManager.goBack(it.id) } } }
+    fun goForward() { _activeTab.value?.let { viewModelScope.launch { tabManager.goForward(it.id) } } }
+    fun reload()    { _activeTab.value?.let { viewModelScope.launch { tabManager.reload(it.id) } } }
+    fun stop()      { _activeTab.value?.let { viewModelScope.launch { tabManager.stop(it.id) } } }
+    fun runJs(js: String) { _activeTab.value?.let { tabManager.evalJs(it.id, js) } }
 
-    fun loadUrl(tabId: String, url: String) {
-        viewModelScope.launch { tabManager.loadUrl(tabId, url) }
-    }
+    fun onTitleChanged(t: String)   { _activeTab.value?.let { tab -> viewModelScope.launch { tabManager.updateTabState(tab.id, title=t); _activeTab.postValue(tabManager.getTab(tab.id)) } } }
+    fun onUrlChanged(u: String)     { _activeTab.value?.let { tab -> viewModelScope.launch { tabManager.updateTabState(tab.id, url=u);   _activeTab.postValue(tabManager.getTab(tab.id)) } } }
+    fun onLoadingChanged(l: Boolean){ _activeTab.value?.let { tab -> viewModelScope.launch { tabManager.updateTabState(tab.id, isLoading=l); _activeTab.postValue(tabManager.getTab(tab.id)) } } }
+    fun onCanGoBack(v: Boolean)     { _activeTab.value?.let { tab -> viewModelScope.launch { tabManager.updateTabState(tab.id, canGoBack=v); _activeTab.postValue(tabManager.getTab(tab.id)) } } }
+    fun onCanGoForward(v: Boolean)  { _activeTab.value?.let { tab -> viewModelScope.launch { tabManager.updateTabState(tab.id, canGoForward=v); _activeTab.postValue(tabManager.getTab(tab.id)) } } }
 
-    fun goBack(tabId: String) = viewModelScope.launch { tabManager.goBack(tabId) }
-
-    fun goForward(tabId: String) = viewModelScope.launch { tabManager.goForward(tabId) }
-
-    fun reload(tabId: String) = viewModelScope.launch { tabManager.reload(tabId) }
-
-    fun stop(tabId: String) = viewModelScope.launch { tabManager.stop(tabId) }
-
-    /**
-     * Run JS in the current page via the javascript: URI scheme.
-     * GeckoView 129 removed the old evalJS helper; wrapping in an IIFE keeps
-     * the page from navigating away.
-     */
-    fun executeJavaScript(tabId: String, js: String) {
-        val geckoSession = getGeckoSession(tabId) ?: return
-        val trimmed = js.trim().removePrefix("javascript:")
-        geckoSession.loadUri("javascript:(function(){ $trimmed })();")
-    }
-
-    fun updateUrlInput(url: String) {
-        _urlInput.value = url
-    }
-
-    fun updateTabTitle(tabId: String, title: String) {
-        viewModelScope.launch {
-            tabManager.updateTabState(tabId, title = title)
-            _tabs.postValue(_activeSession.value?.id?.let { tabManager.getAllTabs(it) })
-            _activeTab.postValue(tabManager.getTab(tabId))
-        }
-    }
-
-    fun updateTabUrl(tabId: String, url: String) {
-        viewModelScope.launch {
-            tabManager.updateTabState(tabId, url = url)
-            _activeTab.postValue(tabManager.getTab(tabId))
-        }
-    }
-
-    fun updateTabLoading(tabId: String, isLoading: Boolean) {
-        viewModelScope.launch {
-            tabManager.updateTabState(tabId, isLoading = isLoading)
-            _activeTab.postValue(tabManager.getTab(tabId))
-        }
-    }
-
-    fun updateTabCanGoBack(tabId: String, canGoBack: Boolean) {
-        viewModelScope.launch {
-            tabManager.updateTabState(tabId, canGoBack = canGoBack)
-            _activeTab.postValue(tabManager.getTab(tabId))
-        }
-    }
-
-    fun updateTabCanGoForward(tabId: String, canGoForward: Boolean) {
-        viewModelScope.launch {
-            tabManager.updateTabState(tabId, canGoForward = canGoForward)
-            _activeTab.postValue(tabManager.getTab(tabId))
-        }
-    }
-
-    fun updateTabFavicon(tabId: String, favicon: String?) {
-        viewModelScope.launch {
-            tabManager.updateTabState(tabId, favicon = favicon)
-        }
-    }
-
-    fun getGeckoSession(tabId: String): GeckoSession? {
-        return tabManager.getGeckoSession(tabId)
-    }
+    fun getGeckoSession(tabId: String?) = tabId?.let { tabManager.getGeckoSession(it) }
 }

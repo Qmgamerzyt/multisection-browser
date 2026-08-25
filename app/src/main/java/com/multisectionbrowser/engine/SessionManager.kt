@@ -139,3 +139,8 @@ class SessionManager(private val context: Context) {
         }
     }
 }
+    suspend fun renameSession(sessionId: String, newName: String): Boolean {
+        val session = repository.getSession(sessionId)?.toDomain() ?: return false
+        repository.insertSession(session.copy(name = newName))
+        return true
+    }
