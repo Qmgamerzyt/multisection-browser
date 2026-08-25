@@ -2,9 +2,8 @@ package com.multisectionbrowser
 
 import android.app.Application
 import android.util.Log
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import java.io.File
@@ -32,7 +31,7 @@ class MultiSessionBrowserApp : Application() {
         installCrashCapture()
         
         // Start GeckoRuntime creation ASYNCHRONOUSLY - don't block main thread!
-        CoroutineScope(Dispatchers.IO).launch {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             initializeRuntimeAsync()
         }
     }

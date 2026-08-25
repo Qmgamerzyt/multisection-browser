@@ -25,13 +25,13 @@ class SessionManager(private val context: Context) {
     }
 
     init {
-        // Start initialization on IO thread - don't block
+        // Initialize on IO thread - don't block main thread
         CoroutineScope(Dispatchers.IO).launch {
             initializeDefaultSession()
         }
     }
 
-    private fun initializeDefaultSession() {
+    private suspend fun initializeDefaultSession() {
         val activeSession = repository.getActiveSession()
         if (activeSession == null) {
             val profileDir = "${context.filesDir.absolutePath}/profiles/default"
@@ -117,8 +117,6 @@ class SessionManager(private val context: Context) {
     }
 
     // Create a GeckoSession for a specific session profile.
-    // Isolation comes from each session having its own profile directory on disk;
-    // the shared runtime serves them all.
     suspend fun createIsolatedGeckoSession(sessionId: String): GeckoSession? {
         val session = repository.getSession(sessionId)?.toDomain()
         if (session == null || geckoRuntime == null) return null

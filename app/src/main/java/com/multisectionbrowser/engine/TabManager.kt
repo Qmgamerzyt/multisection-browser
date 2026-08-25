@@ -17,9 +17,6 @@ import org.mozilla.geckoview.GeckoSession
  * Owns every live [GeckoSession] (one per tab) and wires the required
  * delegates BEFORE any URL is loaded so navigation/touch never hits a
  * half-initialised session.
- * 
- * Key fix: Uses GeckoSession.open() with a callback to ensure session is
- * fully ready before any attach/load operations.
  */
 class TabManager(
     private val context: Context,
@@ -74,9 +71,6 @@ class TabManager(
      * Creates a tab whose GeckoSession is:
      *   constructed -> OPENED on the shared runtime -> fully delegated
      *   -> only then loads a URL.
-     * 
-     * CRITICAL: Waits for GeckoSession.open() callback before returning,
-     * ensuring the session is fully ready for use.
      */
     suspend fun createTab(sessionId: String, url: String = ""): BrowserTab? {
         return withContext(Dispatchers.IO) {
@@ -85,16 +79,9 @@ class TabManager(
 
             val geckoSession = GeckoSession()
             
-            // CRITICAL FIX: Wait for open() to complete before proceeding
-            geckoSession.open(runtime, object : GeckoSession.OpenCallback {
-                override fun onOpen() {
-                    // Session is now fully ready
-                    Log.d(TAG, "GeckoSession $tabId opened and ready")
-                }
-            })
-            
-            // Wait for open to complete (open() is async but callback fires synchronously in same thread)
-            // In GeckoView, open() callback runs before open() returns
+            // CRITICAL FIX: Open session and wait for it to be ready
+            // GeckoSession.open() is synchronous in GV 129
+            geckoSession.open(runtime)
             
             wireDelegates(tabId, geckoSession)          // delegates BEFORE first load
 
