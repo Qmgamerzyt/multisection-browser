@@ -55,12 +55,14 @@ fun GeckoViewScreen(
                 }
             }
             session.navigationDelegate = object : GeckoSession.NavigationDelegate {
-                override fun onLocationChange(session: GeckoSession, url: String?) {
+                // GV129 signature: (session, url?, perms, hasUserGesture)
+                override fun onLocationChange(
+                    session: GeckoSession,
+                    url: String?,
+                    perms: MutableList<GeckoSession.PermissionDelegate.ContentPermission>,
+                    hasUserGesture: Boolean
+                ) {
                     onUrlChanged(url ?: "")
-                }
-
-                override fun onTitleChange(session: GeckoSession, title: String?) {
-                    onTitleChanged(title ?: "")
                 }
 
                 override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
@@ -71,6 +73,12 @@ fun GeckoViewScreen(
                     onCanGoForwardChanged(canGoForward)
                 }
             }
+            // Title callbacks live in ContentDelegate in GV129.
+            session.contentDelegate = object : GeckoSession.ContentDelegate {
+                override fun onTitleChange(session: GeckoSession, title: String?) {
+                    onTitleChanged(title ?: "")
+                }
+            }
         }
 
         onDispose {
@@ -78,6 +86,7 @@ fun GeckoViewScreen(
             geckoSession?.apply {
                 progressDelegate = null
                 navigationDelegate = null
+                contentDelegate = null
             }
         }
     }

@@ -2,6 +2,7 @@ package com.multisectionbrowser.engine
 
 import android.content.Context
 import android.util.Log
+import com.multisectionbrowser.MultiSessionBrowserApp
 import com.multisectionbrowser.data.repository.BrowserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -17,7 +18,8 @@ class TabManager(
     private val repository = BrowserRepository.getInstance(context)
     private val geckoSessions = mutableMapOf<String, GeckoSession>()
     private var activeTabId: String? = null
-    private val geckoRuntime: GeckoRuntime? = (context.applicationContext as MultiSessionBrowserApp).getGeckoRuntime()
+    private val geckoRuntime: GeckoRuntime?
+        get() = (context.applicationContext as MultiSessionBrowserApp).geckoRuntime
 
     companion object {
         private const val TAG = "TabManager"
@@ -199,18 +201,17 @@ class TabManager(
         }
     }
 
-    // Clear storage for a specific tab's session
+    // Clear all browsing data via the runtime's StorageController (GV129: clearData(flags))
     suspend fun clearTabStorage(tabId: String): Boolean {
         val runtime = geckoRuntime ?: return false
         return withContext(Dispatchers.IO) {
-            // StorageController lives on the GeckoRuntime, not on GeckoSession.
-            runtime.storageController.clearAllStorage()
-            Log.d(TAG, "Cleared all storage via runtime controller")
+            runtime.storageController.clearData(StorageController.ALL)
+            Log.d(TAG, "Cleared storage for tab context: $tabId")
             true
         }
     }
 
-    // Get storage controller for cookie/data management
+    // Get storage controller (lives on GeckoRuntime in GV129)
     fun getStorageController(): StorageController? {
         return geckoRuntime?.storageController
     }

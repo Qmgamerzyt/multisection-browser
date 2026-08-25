@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.multisectionbrowser.data.db.ExtensionEntity
 import com.multisectionbrowser.data.db.SessionExtensionSettingsEntity
 import com.multisectionbrowser.engine.extensions.ExtensionManager
+import kotlinx.coroutines.launch
 
 @Composable
 fun ExtensionsScreen(
@@ -51,6 +53,7 @@ fun ExtensionsScreen(
 ) {
     var showInstallDialog by remember { mutableStateOf(false) }
     var installInput by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -121,13 +124,20 @@ fun ExtensionsScreen(
                         isEnabled = isEnabled,
                         triggerMode = triggerMode,
                         onEnabledChange = { enabled ->
-                            extensionManager.setExtensionEnabled(sessionId, ext.id, enabled)
+                            scope.launch {
+                                extensionManager.setExtensionEnabled(sessionId, ext.id, enabled)
+                            }
                         },
                         onTriggerModeChange = { mode ->
-                            extensionManager.setExtensionTriggerMode(sessionId, ext.id, mode)
+                            scope.launch {
+                                extensionManager.setExtensionTriggerMode(sessionId, ext.id, mode)
+                            }
                         },
                         onUninstall = {
-                            extensionManager.setExtensionEnabled(sessionId, ext.id, false)
+                            scope.launch {
+                                extensionManager.uninstallExtensionFromSession(ext.id)
+                                extensionManager.setExtensionEnabled(sessionId, ext.id, false)
+                            }
                         }
                     )
                 }
@@ -141,7 +151,7 @@ fun ExtensionsScreen(
             onInputChange = { installInput = it },
             onDismiss = { showInstallDialog = false },
             onInstall = { id ->
-                extensionManager.installFromAMO(id)
+                scope.launch { extensionManager.installFromAMO(id) }
                 showInstallDialog = false
                 installInput = ""
             }

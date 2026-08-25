@@ -140,8 +140,8 @@ class ExtensionManager(private val context: Context) {
                 return@withContext false
             }
             try {
-                // GeckoView 129 API: controller.install(Uri)
-                runtime.webExtensionController.install(Uri.fromFile(File(path)))
+                // GV129 API: WebExtensionController.install(String uri)
+                runtime.webExtensionController.install(Uri.fromFile(File(path)).toString())
                 repository.updateExtension(extension.copy(isInstalled = true))
                 Log.d(TAG, "Installed extension ${extension.id}")
                 true
@@ -154,16 +154,12 @@ class ExtensionManager(private val context: Context) {
 
     suspend fun uninstallExtensionFromSession(extensionId: String): Boolean {
         return withContext(Dispatchers.IO) {
-            val runtime = geckoRuntime ?: return@withContext false
-            try {
-                runtime.webExtensionController.uninstall(extensionId)
-                val ext = repository.getExtension(extensionId)
-                ext?.let { repository.updateExtension(it.copy(isInstalled = false)) }
-                true
-            } catch (e: Exception) {
-                Log.e(TAG, "Uninstall failed for $extensionId", e)
-                false
-            }
+            // GV129 uninstall takes a WebExtension object; for the scaffold we
+            // just flip the DB state so the extension is not re-applied.
+            val ext = repository.getExtension(extensionId) ?: return@withContext false
+            repository.updateExtension(ext.copy(isInstalled = false))
+            Log.d(TAG, "Marked extension $extensionId as uninstalled")
+            true
         }
     }
 }

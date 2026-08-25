@@ -49,10 +49,13 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     var headerVisible by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
-    val sessions by viewModel.sessions.observeAsState(initialValue = emptyList())
-    val activeSession by viewModel.activeSession.observeAsState(initialValue = null)
-    val tabs by viewModel.tabs.observeAsState(initialValue = emptyList())
-    val activeTab by viewModel.activeTab.observeAsState(initialValue = null)
+    val sessionsState by viewModel.sessions.observeAsState()
+    val activeSession by viewModel.activeSession.observeAsState()
+    val tabsState by viewModel.tabs.observeAsState()
+    val activeTab by viewModel.activeTab.observeAsState()
+
+    val sessions: List<BrowserSession> = sessionsState ?: emptyList()
+    val tabs: List<BrowserTab> = tabsState ?: emptyList()
 
     // GeckoSession is created eagerly in TabManager; look it up for the active tab.
     val geckoSession = activeTab?.let { viewModel.getGeckoSession(it.id) }

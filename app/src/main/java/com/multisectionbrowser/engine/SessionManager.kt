@@ -2,20 +2,22 @@ package com.multisectionbrowser.engine
 
 import android.content.Context
 import android.util.Log
+import com.multisectionbrowser.MultiSessionBrowserApp
 import com.multisectionbrowser.data.repository.BrowserRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
-import org.mozilla.geckoview.StorageController
 import java.io.File
 
 class SessionManager(private val context: Context) {
 
     private val repository = BrowserRepository.getInstance(context)
     private var activeSessionId: String? = null
-    private val geckoRuntime: GeckoRuntime? = (context.applicationContext as MultiSessionBrowserApp).getGeckoRuntime()
+    private val geckoRuntime: GeckoRuntime?
+        get() = (context.applicationContext as MultiSessionBrowserApp).geckoRuntime
 
     companion object {
         private const val TAG = "SessionManager"
@@ -127,11 +129,12 @@ class SessionManager(private val context: Context) {
         }
     }
 
-    // Clear all storage (cookies, localStorage, etc.) for a given origin context
+    // Clear all storage (cookies, localStorage, etc.)
     suspend fun clearSessionStorage(sessionId: String): Boolean {
         val runtime = geckoRuntime ?: return false
         return withContext(Dispatchers.IO) {
-            runtime.storageController.clearAllStorage()
+            // GV129 StorageController exposes clearData(flags); FLAG_ALL wipes everything.
+            runtime.storageController.clearData(org.mozilla.geckoview.StorageController.ALL)
             true
         }
     }
