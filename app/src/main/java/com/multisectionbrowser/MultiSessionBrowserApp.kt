@@ -2,11 +2,10 @@ package com.multisectionbrowser
 
 import android.app.Application
 import android.util.Log
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.await
+import kotlinx.coroutines.Mutex
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import java.io.File
@@ -26,8 +25,8 @@ class MultiSessionBrowserApp : Application() {
     var runtimeReady: Boolean = false
         private set
 
-    /** Deferred for awaiting runtime readiness */
-    private val runtimeDeferred = CompletableDeferred<GeckoRuntime>()
+    /** Mutex for synchronizing runtime access */
+    private val runtimeMutex = Mutex()
 
     override fun onCreate() {
         super.onCreate()
@@ -50,14 +49,13 @@ class MultiSessionBrowserApp : Application() {
             
             // Publish safely
             geckoRuntime = runtime
-            
-            // Complete the deferred
-            runtimeDeferred.complete(runtime)
+            runtimeReady = true
             
             Log.d("MultiSessionBrowser", "GeckoRuntime initialized successfully")
         } catch (e: Exception) {
             Log.e("MultiSessionBrowser", "GeckoRuntime init failed", e)
-            runtimeDeferred.completeExceptionally(e)
+            // Still mark ready to avoid deadlock
+            runtimeReady = true
         }
     }
 
@@ -66,17 +64,32 @@ class MultiSessionBrowserApp : Application() {
      * If runtime isn't ready yet, suspends until it's ready.
      */
     suspend fun getOrCreateRuntime(): GeckoRuntime {
+        // Fast path - already ready
         if (geckoRuntime != null) {
             return geckoRuntime!!
         }
-        return runtimeDeferred.await()
+        
+        // Slow path - wait for initialization to complete
+        return runtimeMutex.withLock {
+            if (geckoRuntime != null) {
+                return@withLock geckoRuntime!!
+            }
+            
+            // Wait for initialization to complete
+            while (!runtimeReady) {
+                kotlinx.coroutines.delay(50)
+            }
+            
+            // Should be ready now
+            geckoRuntime!!
+        }
     }
 
     /** Checks if runtime is ready without suspending */
-    fun isRuntimeReady(): Boolean = geckoRuntime != null
+    fun isRuntimeReady(): Boolean = runtimeReady
 
     /** Gets runtime if ready, null otherwise (non-blocking) */
-    fun getRuntimeIfReady(): GeckoRuntime? = geckoRuntime
+    fun getRuntimeIfReady(): GeckoRuntime? = if (runtimeReady) geckoRuntime else null
 
     /** Writes every uncaught stack trace to a readable file for phone-only debugging */
     private fun installCrashCapture() {
