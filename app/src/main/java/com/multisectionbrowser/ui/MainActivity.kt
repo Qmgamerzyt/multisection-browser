@@ -218,7 +218,7 @@ private fun BottomButton(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.CenterVertically,
+        verticalArrangement = Arrangement.Center,
         modifier = modifier
             .clickable(onClick = onClick)
             .padding(vertical = 2.dp)
