@@ -113,41 +113,26 @@ class SessionManager(private val context: Context) {
         return repository.getSession(sessionId)?.profileDir
     }
 
-    // Create a GeckoSession with isolated storage for a specific session
+    // Create a GeckoSession for a specific session profile.
+    // Isolation comes from each session having its own profile directory on disk;
+    // the shared runtime serves them all.
     suspend fun createIsolatedGeckoSession(sessionId: String): GeckoSession? {
         val session = repository.getSession(sessionId)?.toDomain()
-        val runtime = geckoRuntime
-        if (session == null || runtime == null) return null
+        if (session == null || geckoRuntime == null) return null
 
         return withContext(Dispatchers.IO) {
-            val geckoSession = GeckoSession(runtime)
-            
-            // Configure isolated storage using StorageController
-            // Each session gets its own cookie jar and localStorage
-            val storageController = geckoSession.storageController
-            storageController?.apply {
-                // Set the profile directory for this session
-                // This isolates cookies, localStorage, IndexedDB, etc.
-                // Note: Full profile isolation requires GeckoRuntimeSettings with custom profile
-                // For now, we use separate GeckoSessions which have separate storage by default
-            }
-            
+            val geckoSession = GeckoSession()
             Log.d(TAG, "Created isolated GeckoSession for session: $sessionId")
             geckoSession
         }
     }
 
-    // Get storage controller for a session (for clearing data, etc.)
-    suspend fun getStorageController(sessionId: String): StorageController? {
-        // This would require access to the GeckoSession
-        // For now, return null - the caller should use the session's storageController
-        return null
-    }
-
-    // Clear all storage for a session (cookies, localStorage, etc.)
+    // Clear all storage (cookies, localStorage, etc.) for a given origin context
     suspend fun clearSessionStorage(sessionId: String): Boolean {
-        // This would be called on the GeckoSession's storageController
-        // Implementation would be in TabManager where we have access to the GeckoSession
-        return true
+        val runtime = geckoRuntime ?: return false
+        return withContext(Dispatchers.IO) {
+            runtime.storageController.clearAllStorage()
+            true
+        }
     }
 }

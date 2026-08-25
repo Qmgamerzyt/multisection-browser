@@ -1,30 +1,31 @@
 package com.multisectionbrowser.ui
 
-import android.content.Intent
-import android.net.Uri
-import android.util.Log
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,7 +34,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,72 +41,57 @@ import com.multisectionbrowser.data.db.ExtensionEntity
 import com.multisectionbrowser.data.db.SessionExtensionSettingsEntity
 import com.multisectionbrowser.engine.extensions.ExtensionManager
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExtensionsScreen(
     sessionId: String,
+    extensions: List<ExtensionEntity>,
+    sessionSettings: List<SessionExtensionSettingsEntity>,
     extensionManager: ExtensionManager,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    var extensions by remember { mutableStateOf<List<ExtensionEntity>>(emptyList()) }
-    var sessionSettings by remember { mutableStateOf<List<SessionExtensionSettingsEntity>>(emptyList()) }
     var showInstallDialog by remember { mutableStateOf(false) }
-    var installUrl by remember { mutableStateOf("") }
-    var installMethod by remember { mutableStateOf(0) } // 0 = AMO, 1 = XPI
-
-    // Load extensions
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        loadExtensions()
-    }
-
-    fun loadExtensions() {
-        // In a real implementation, this would use the repository
-        // For now, we'll use a placeholder
-    }
+    var installInput by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Extensions",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface
             )
             IconButton(onClick = onDismiss) {
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.Default.Close,
+                    imageVector = Icons.Filled.Close,
                     contentDescription = "Close",
                     tint = Color.Gray
                 )
             }
         }
 
-        // Install button
         Button(
             onClick = { showInstallDialog = true },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
         ) {
-            Icon(
-                imageVector = androidx.compose.material.icons.Icons.Default.Add,
-                contentDescription = "Add extension"
-            )
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(8.dp))
+            Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
             Text(text = "Install Extension")
         }
 
-        // Extensions list
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -120,15 +105,16 @@ fun ExtensionsScreen(
                 ) {
                     Text(
                         text = "No extensions installed",
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         color = Color.Gray
                     )
                 }
             } else {
                 extensions.forEach { ext ->
                     val setting = sessionSettings.firstOrNull { it.extensionId == ext.id }
-                    val isEnabled = if (setting != null) setting.isEnabled else true
-                    val triggerMode = if (setting != null) setting.triggerMode else SessionExtensionSettingsEntity.TRIGGER_AUTO
+                    val isEnabled = setting?.isEnabled ?: true
+                    val triggerMode = setting?.triggerMode
+                        ?: SessionExtensionSettingsEntity.TRIGGER_AUTO
 
                     ExtensionCard(
                         extension = ext,
@@ -136,18 +122,12 @@ fun ExtensionsScreen(
                         triggerMode = triggerMode,
                         onEnabledChange = { enabled ->
                             extensionManager.setExtensionEnabled(sessionId, ext.id, enabled)
-                            loadExtensions()
                         },
                         onTriggerModeChange = { mode ->
                             extensionManager.setExtensionTriggerMode(sessionId, ext.id, mode)
-                            loadExtensions()
                         },
                         onUninstall = {
-                            extensionManager.uninstallExtensionFromSession(
-                                // Need access to GeckoSession here
-                            )
                             extensionManager.setExtensionEnabled(sessionId, ext.id, false)
-                            loadExtensions()
                         }
                     )
                 }
@@ -155,24 +135,21 @@ fun ExtensionsScreen(
         }
     }
 
-    // Install dialog
     if (showInstallDialog) {
         InstallExtensionDialog(
+            input = installInput,
+            onInputChange = { installInput = it },
             onDismiss = { showInstallDialog = false },
-            onInstall = { url, method ->
-                if (method == 0) {
-                    // AMO
-                    extensionManager.installFromAMO(url)
-                } else {
-                    // XPI file - would need file picker
-                }
+            onInstall = { id ->
+                extensionManager.installFromAMO(id)
                 showInstallDialog = false
-                loadExtensions()
+                installInput = ""
             }
         )
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ExtensionCard(
     extension: ExtensionEntity,
@@ -183,74 +160,68 @@ fun ExtensionCard(
     onUninstall: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = extension.name,
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "v${extension.version} by ${extension.author}",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         color = Color.Gray
                     )
                 }
-                androidx.compose.material3.Switch(
-                    checked = isEnabled,
-                    onCheckedChange = onEnabledChange,
-                    modifier = Modifier.padding(start = 16.dp)
+                Switch(checked = isEnabled, onCheckedChange = onEnabledChange)
+            }
+
+            if (extension.description.isNotBlank()) {
+                Text(
+                    text = extension.description,
+                    fontSize = 13.sp,
+                    color = Color.DarkGray,
+                    maxLines = 2
                 )
             }
 
-            Text(
-                text = extension.description,
-                fontSize = 14.sp,
-                color = Color.DarkGray
-            )
-
-            // Trigger mode selector
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Trigger:", fontSize = 14.sp, color = Color.DarkGray)
-                
-                val modes = listOf(
+                listOf(
                     SessionExtensionSettingsEntity.TRIGGER_AUTO to "Auto",
                     SessionExtensionSettingsEntity.TRIGGER_OFF to "Off",
                     SessionExtensionSettingsEntity.TRIGGER_MANUAL to "Manual"
-                )
-                
-                modes.forEach { (modeValue, modeLabel) ->
-                    val isSelected = triggerMode == modeValue
-                    androidx.compose.material3.FilterChip(
-                        selected = isSelected,
+                ).forEach { (modeValue, label) ->
+                    FilterChip(
+                        selected = triggerMode == modeValue,
                         onClick = { onTriggerModeChange(modeValue) },
-                        label = { Text(text = modeLabel, fontSize = 12.sp) },
-                        modifier = Modifier.height(32.dp)
+                        label = { Text(label, fontSize = 11.sp) }
                     )
                 }
-                
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
-                
+
+                Spacer(modifier = Modifier.weight(1f))
+
                 IconButton(onClick = onUninstall) {
                     Icon(
-                        imageVector = androidx.compose.material.icons.Icons.Default.Delete,
+                        imageVector = Icons.Filled.Delete,
                         contentDescription = "Uninstall",
-                        tint = Color.Red
+                        tint = Color(0xFFB3261E)
                     )
                 }
             }
@@ -260,130 +231,54 @@ fun ExtensionCard(
 
 @Composable
 fun InstallExtensionDialog(
+    input: String,
+    onInputChange: (String) -> Unit,
     onDismiss: () -> Unit,
-    onInstall: (String, Int) -> Unit
+    onInstall: (String) -> Unit
 ) {
-    var url by remember { mutableStateOf("") }
-    var method by remember { mutableStateOf(0) } // 0 = AMO ID, 1 = XPI file
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0x80000000))
-            .clickable { onDismiss() },
+            .padding(24.dp),
         contentAlignment = Alignment.Center
     ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-                .height(300.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
+        Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                Text(
+                    text = "Install from AMO",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                TextField(
+                    value = input,
+                    onValueChange = onInputChange,
+                    singleLine = true,
+                    placeholder = { Text("Extension id e.g. ublock-origin", fontSize = 13.sp) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Install Extension",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color.Gray
-                        )
-                    }
-                }
-
-                // Method selector
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
-                        onClick = { method = 0 },
-                        modifier = Modifier.weight(1f),
-                        colors = if (method == 0) androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6750A4),
-                            contentColor = Color.White
-                        ) else androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF5F5F5),
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFECE6F0),
                             contentColor = Color.Black
-                        )
-                    ) {
-                        Text(text = "AMO (ID)", fontWeight = FontWeight.Medium)
-                    }
+                        ),
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) { Text("Cancel") }
+
                     Button(
-                        onClick = { method = 1 },
-                        modifier = Modifier.weight(1f),
-                        colors = if (method == 1) androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6750A4),
-                            contentColor = Color.White
-                        ) else androidx.compose.material3.ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFF5F5F5),
-                            contentColor = Color.Black
-                        )
-                    ) {
-                        Text(text = "XPI File", fontWeight = FontWeight.Medium)
-                    }
-                }
-
-                // Input field
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .background(Color.White, RoundedCornerShape(8.dp))
-                ) {
-                    androidx.compose.material3.TextField(
-                        value = url,
-                        onValueChange = { url = it },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(12.dp),
-                        singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.input.keyboard.KeyboardType.Text
-                        ),
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            fontSize = 14.sp,
-                            color = Color.Black
-                        ),
-                        placeholder = {
-                            Text(
-                                text = if (method == 0) "Extension ID (e.g., ublock-origin)" else "XPI file path",
-                                color = Color.Gray
-                            )
-                        }
-                    )
-                }
-
-                // Install button
-                Button(
-                    onClick = {
-                        if (url.isNotBlank()) {
-                            onInstall(url, method)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF6750A4),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(text = "Install", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        onClick = { if (input.isNotBlank()) onInstall(input.trim()) },
+                        enabled = input.isNotBlank()
+                    ) { Text("Install") }
                 }
             }
         }

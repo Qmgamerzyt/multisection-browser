@@ -1,21 +1,12 @@
 package com.multisectionbrowser.ui
 
-import android.content.Context
-import android.util.Log
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.ViewFactory
-import androidx.compose.ui.platform.androidView
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 
@@ -27,76 +18,66 @@ fun GeckoViewScreen(
     onUrlChanged: (String) -> Unit = {},
     onLoadingChanged: (Boolean) -> Unit = {},
     onCanGoBackChanged: (Boolean) -> Unit = {},
-    onCanGoForwardChanged: (Boolean) -> Unit = {},
-    onFaviconChanged: (String?) -> Unit = {}
+    onCanGoForwardChanged: (Boolean) -> Unit = {}
 ) {
-    var geckoView by remember { mutableStateOf<GeckoView?>(null) }
-    var lifecycleObserver by remember { mutableStateOf<LifecycleEventObserver?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    androidView(
-        factory = ViewFactory { context ->
-            val view = GeckoView(context)
-            view.setBackgroundColor(0xFFFFFFFF.toInt())
-            geckoView = view
-            view
+    AndroidView(
+        factory = { context ->
+            GeckoView(context).apply { setBackgroundColor(0xFF101010.toInt()) }
         },
         update = { view ->
-            if (geckoSession != null && view.geckoSession !== geckoSession) {
-                view.geckoSession = geckoSession
+            if (geckoSession != null && view.session !== geckoSession) {
+                view.setSession(geckoSession)
             }
         },
         modifier = modifier.fillMaxSize()
     )
 
-    // Observe GeckoSession lifecycle
-    DisposableEffect(geckoSession) {
-        if (geckoSession != null) {
-            val observer = LifecycleEventObserver { _, event ->
-                when (event) {
-                    androidx.lifecycle.Lifecycle.Event.ON_START -> {
-                        geckoSession.resume()
-                    }
-                    androidx.lifecycle.Lifecycle.Event.ON_STOP -> {
-                        geckoSession.pause()
-                    }
-                    else -> {}
-                }
-            }
-            lifecycleObserver = observer
-            (geckoView?.context as? LifecycleOwner)?.lifecycle?.addObserver(observer)
-        }
-        onDispose {
-            lifecycleObserver?.let {
-                (geckoView?.context as? LifecycleOwner)?.lifecycle?.removeObserver(it)
+    // Keep the GeckoSession alive/focused with the Compose lifecycle.
+    DisposableEffect(lifecycleOwner, geckoSession) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME ->
+                    geckoSession?.setActive(true)
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE ->
+                    geckoSession?.setActive(false)
+                else -> Unit
             }
         }
-    }
+        lifecycleOwner.lifecycle.addObserver(observer)
 
-    // Set up delegates using GeckoSession API
-    DisposableEffect(geckoSession) {
         geckoSession?.let { session ->
-            // Progress delegate
-            session.progressDelegate = object : GeckoSession.ProgressDelegate() {
+            // Delegates are plain interfaces in GeckoView 129 — override only what we need.
+            session.progressDelegate = object : GeckoSession.ProgressDelegate {
                 override fun onProgressChange(session: GeckoSession, progress: Int) {
-                    onLoadingChanged(progress < 100)
+                    onLoadingChanged(progress in 1..99)
                 }
             }
-
-            // Navigation delegate
-            session.navigationDelegate = object : GeckoSession.NavigationDelegate() {
-                override fun onLocationChange(session: GeckoSession, uri: String) {
-                    onUrlChanged(uri)
+            session.navigationDelegate = object : GeckoSession.NavigationDelegate {
+                override fun onLocationChange(session: GeckoSession, url: String?) {
+                    onUrlChanged(url ?: "")
                 }
 
-                override fun onTitleChange(session: GeckoSession, title: String) {
-                    onTitleChanged(title)
+                override fun onTitleChange(session: GeckoSession, title: String?) {
+                    onTitleChanged(title ?: "")
+                }
+
+                override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
+                    onCanGoBackChanged(canGoBack)
+                }
+
+                override fun onCanGoForward(session: GeckoSession, canGoForward: Boolean) {
+                    onCanGoForwardChanged(canGoForward)
                 }
             }
         }
+
         onDispose {
-            geckoSession?.let { session ->
-                session.progressDelegate = null
-                session.navigationDelegate = null
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            geckoSession?.apply {
+                progressDelegate = null
+                navigationDelegate = null
             }
         }
     }

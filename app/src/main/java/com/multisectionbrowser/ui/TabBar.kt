@@ -1,30 +1,32 @@
 package com.multisectionbrowser.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.multisectionbrowser.engine.BrowserTab
@@ -42,78 +44,67 @@ fun TabBar(
         modifier = modifier
             .fillMaxWidth()
             .height(44.dp)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        tabs.forEach { tab ->
+        tabs.take(5).forEach { tab ->
             val isActive = tab.id == activeTabId
-            Box(
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isActive) MaterialTheme.colorScheme.surfaceVariant
+                    else MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                shape = RoundedCornerShape(14.dp),
+                elevation = CardDefaults.cardElevation(
+                    defaultElevation = if (isActive) 2.dp else 0.dp
+                ),
                 modifier = Modifier
-                    .fillMaxWidth(1f)
+                    .weight(1f)
                     .height(36.dp)
-                    .padding(horizontal = 4.dp)
+                    .clickable { onTabClick(tab.id) }
             ) {
-                Card(
-                    modifier = Modifier.fillMaxSize(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isActive) Color.White else Color(0xFFF5F5F5),
-                        contentColor = Color.Black
-                    ),
-                    shape = RoundedCornerShape(18.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = if (isActive) 2.dp else 0.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Icon(
+                        imageVector = Icons.Filled.Public,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = tab.title.ifBlank { "New Tab" },
+                        fontSize = 11.sp,
+                        fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    IconButton(
+                        onClick = { onTabClose(tab.id) },
+                        modifier = Modifier.size(18.dp)
                     ) {
-                        // Favicon placeholder
-                        Box(
-                            modifier = Modifier.size(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.Web,
-                                contentDescription = "Favicon",
-                                tint = Color.Gray
-                            )
-                        }
-
-                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.width(8.dp))
-
-                        Text(
-                            text = if (tab.title.isNotBlank()) tab.title else "New Tab",
-                            fontSize = 13.sp,
-                            fontWeight = if (isActive) androidx.compose.ui.text.font.FontWeight.Medium else androidx.compose.ui.text.font.FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close tab",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(12.dp)
                         )
-
-                        IconButton(
-                            onClick = { onTabClose(tab.id) },
-                            modifier = Modifier.padding(start = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Default.Close,
-                                contentDescription = "Close tab",
-                                tint = Color.Gray
-                            )
-                        }
                     }
                 }
             }
+            Spacer(modifier = Modifier.width(4.dp))
         }
 
-        // New tab button
         IconButton(onClick = onNewTab) {
             Icon(
-                imageVector = androidx.compose.material.icons.Icons.Default.Add,
+                imageVector = Icons.Filled.Add,
                 contentDescription = "New tab",
-                tint = Color(0xFF6750A4)
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }

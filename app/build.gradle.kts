@@ -64,6 +64,7 @@ dependencies {
 
     // Compose - explicit versions matching Kotlin 1.9.20 / Compiler 1.5.10
     implementation("androidx.compose.ui:ui:1.5.0")
+    implementation("androidx.compose.runtime:runtime-livedata:1.5.0")
     implementation("androidx.compose.ui:ui-graphics:1.5.0")
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.0")
     implementation("androidx.compose.animation:animation:1.5.0")

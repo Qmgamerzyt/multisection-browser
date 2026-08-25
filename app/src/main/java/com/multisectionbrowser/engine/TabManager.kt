@@ -62,7 +62,7 @@ class TabManager(
             val tabId = java.util.UUID.randomUUID().toString()
             
             // Create isolated GeckoSession for this session's profile
-            val geckoSession = GeckoSession(runtime)
+            val geckoSession = GeckoSession()
 
             val tab = BrowserTab(
                 id = tabId,
@@ -201,20 +201,17 @@ class TabManager(
 
     // Clear storage for a specific tab's session
     suspend fun clearTabStorage(tabId: String): Boolean {
-        val geckoSession = geckoSessions[tabId]
-        if (geckoSession != null) {
-            return withContext(Dispatchers.IO) {
-                val storageController = geckoSession.storageController
-                storageController?.clearAllStorage()
-                Log.d(TAG, "Cleared storage for tab: $tabId")
-                true
-            }
+        val runtime = geckoRuntime ?: return false
+        return withContext(Dispatchers.IO) {
+            // StorageController lives on the GeckoRuntime, not on GeckoSession.
+            runtime.storageController.clearAllStorage()
+            Log.d(TAG, "Cleared all storage via runtime controller")
+            true
         }
-        return false
     }
 
-    // Get storage controller for a tab (for managing cookies, etc.)
-    fun getStorageController(tabId: String): StorageController? {
-        return geckoSessions[tabId]?.storageController
+    // Get storage controller for cookie/data management
+    fun getStorageController(): StorageController? {
+        return geckoRuntime?.storageController
     }
 }

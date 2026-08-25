@@ -6,7 +6,8 @@ import org.mozilla.geckoview.GeckoRuntimeSettings
 
 class MultiSessionBrowserApp : Application() {
 
-    private var geckoRuntime: GeckoRuntime? = null
+    var geckoRuntime: GeckoRuntime? = null
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -14,14 +15,11 @@ class MultiSessionBrowserApp : Application() {
     }
 
     private fun initializeGeckoRuntime() {
-        val settings = GeckoRuntimeSettings.Builder(this)
-            .useWebRender(true)
+        val settings = GeckoRuntimeSettings.Builder()
+            .javaScriptEnabled(true)
             .build()
-
+        // One shared runtime for the whole app. Per-session isolation is achieved
+        // by giving every session its own profile directory + separate GeckoSessions.
         geckoRuntime = GeckoRuntime.create(this, settings)
-    }
-
-    fun getGeckoRuntime(): GeckoRuntime? {
-        return geckoRuntime
     }
 }
