@@ -13,9 +13,13 @@ android {
         applicationId = "com.multisectionbrowser"
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         vectorDrawables.useSupportLibrary = true
+        // GeckoView ships all 4 ABIs (~580 MB). Ship arm64-v8a only -> ~150 MB APK.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -25,6 +29,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    // Android 9 accepts v2-only, but enable both schemes for maximum installer compatibility.
+    signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
