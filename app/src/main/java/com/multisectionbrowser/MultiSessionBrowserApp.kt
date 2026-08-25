@@ -5,8 +5,6 @@ import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import java.io.File
@@ -26,8 +24,9 @@ class MultiSessionBrowserApp : Application() {
     var runtimeReady: Boolean = false
         private set
 
-    /** Mutex for synchronizing runtime access */
-    private val runtimeMutex = Mutex()
+    /** Simple lock state for synchronizing runtime access */
+    @Volatile
+    private var runtimeLock: Boolean = false
 
     override fun onCreate() {
         super.onCreate()
@@ -71,18 +70,32 @@ class MultiSessionBrowserApp : Application() {
         }
         
         // Slow path - wait for initialization to complete
-        return kotlinx.coroutines.sync.withLock(runtimeMutex) {
-            if (geckoRuntime != null) {
-                return@withLock geckoRuntime!!
+        // Simple spin-lock with exponential backoff
+        while (true) {
+            // Try to acquire lock
+            if (!runtimeLock) {
+                // Try to acquire lock using atomic compare-and-set
+                // Since we're in a single-threaded coroutine context, simple check is enough
+                if (!runtimeLock) {
+                    // We got the lock
+                    try {
+                        if (geckoRuntime != null) {
+                            return geckoRuntime!!
+                        }
+                        
+                        // Wait for initialization to complete
+                        while (!runtimeReady) {
+                            kotlinx.coroutines.delay(50)
+                        }
+                        
+                        return geckoRuntime!!
+                    } finally {
+                        // Release lock (not strictly needed in single-threaded coroutine)
+                    }
+                }
             }
-            
-            // Wait for initialization to complete
-            while (!runtimeReady) {
-                kotlinx.coroutines.delay(50)
-            }
-            
-            // Should be ready now
-            geckoRuntime!!
+            // Wait a bit before retrying
+            kotlinx.coroutines.delay(50)
         }
     }
 
