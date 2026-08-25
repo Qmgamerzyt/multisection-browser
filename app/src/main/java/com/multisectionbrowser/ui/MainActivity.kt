@@ -1,7 +1,6 @@
 package com.multisectionbrowser.ui
 
 import android.os.Bundle
-import androidx.core.splashscreen.SplashScreenCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -45,13 +44,6 @@ class MainActivity : ComponentActivity() {
     private var splashScreenDismissed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // CRITICAL: Install SplashScreen IMMEDIATELY - before super.onCreate()
-        // Using SplashScreenCompat for API 21+ compatibility
-        val splashScreen = SplashScreenCompat.installSplashScreen(this)
-        splashScreen.setKeepOnScreenCondition { 
-            // Keep splash until we explicitly dismiss it
-            !splashScreenDismissed
-        }
         super.onCreate(savedInstanceState)
         setContent { App() }
     }
