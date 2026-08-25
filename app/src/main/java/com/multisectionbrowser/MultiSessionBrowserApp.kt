@@ -2,10 +2,11 @@ package com.multisectionbrowser
 
 import android.app.Application
 import android.util.Log
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.await
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import java.io.File
@@ -25,8 +26,8 @@ class MultiSessionBrowserApp : Application() {
     var runtimeReady: Boolean = false
         private set
 
-    /** Completable for awaiting runtime readiness */
-    private var runtimeReadyCallback: ((GeckoRuntime) -> Unit)? = null
+    /** Deferred for awaiting runtime readiness */
+    private val runtimeDeferred = CompletableDeferred<GeckoRuntime>()
 
     override fun onCreate() {
         super.onCreate()
@@ -49,19 +50,14 @@ class MultiSessionBrowserApp : Application() {
             
             // Publish safely
             geckoRuntime = runtime
-            runtimeReady = true
             
-            // Notify any waiters
-            runtimeReadyCallback?.let { callback ->
-                callback(runtime)
-                runtimeReadyCallback = null
-            }
+            // Complete the deferred
+            runtimeDeferred.complete(runtime)
             
             Log.d("MultiSessionBrowser", "GeckoRuntime initialized successfully")
         } catch (e: Exception) {
             Log.e("MultiSessionBrowser", "GeckoRuntime init failed", e)
-            // Still mark ready to avoid deadlock, but log error
-            runtimeReady = true
+            runtimeDeferred.completeExceptionally(e)
         }
     }
 
@@ -70,29 +66,17 @@ class MultiSessionBrowserApp : Application() {
      * If runtime isn't ready yet, suspends until it's ready.
      */
     suspend fun getOrCreateRuntime(): GeckoRuntime {
-        if (runtimeReady && geckoRuntime != null) {
+        if (geckoRuntime != null) {
             return geckoRuntime!!
         }
-        
-        return suspendCancellableCoroutine { cont ->
-            if (runtimeReady && geckoRuntime != null) {
-                cont.resume(geckoRuntime!!)
-            } else {
-                runtimeReadyCallback = { runtime ->
-                    cont.resume(runtime)
-                }
-                cont.invokeOnCancellation {
-                    runtimeReadyCallback = null
-                }
-            }
-        }
+        return runtimeDeferred.await()
     }
 
     /** Checks if runtime is ready without suspending */
-    fun isRuntimeReady(): Boolean = runtimeReady
+    fun isRuntimeReady(): Boolean = geckoRuntime != null
 
     /** Gets runtime if ready, null otherwise (non-blocking) */
-    fun getRuntimeIfReady(): GeckoRuntime? = if (runtimeReady) geckoRuntime else null
+    fun getRuntimeIfReady(): GeckoRuntime? = geckoRuntime
 
     /** Writes every uncaught stack trace to a readable file for phone-only debugging */
     private fun installCrashCapture() {
