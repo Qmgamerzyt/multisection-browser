@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.mozilla.geckoview.AllowOrDeny
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
@@ -125,7 +126,7 @@ class TabManager(
     }
 
     /** Must be called from IO thread; used when the last tab of a session closes. */
-    private fun createTabInternalLocked(sessionId: String) {
+    private suspend fun createTabInternalLocked(sessionId: String) {
         val tabId = java.util.UUID.randomUUID().toString()
         val gs = GeckoSession()
         geckoRuntime?.let { gs.open(it) }
@@ -223,7 +224,7 @@ class TabManager(
             override fun onLoadRequest(
                 session: GeckoSession,
                 request: GeckoSession.NavigationDelegate.LoadRequest
-            ): GeckoResult<Boolean>? = null // allow everything
+            ): GeckoResult<AllowOrDeny>? = null // allow everything
         }
         gs.contentDelegate = object : GeckoSession.ContentDelegate {
             override fun onTitleChange(session: GeckoSession, title: String?) {
@@ -237,7 +238,7 @@ class TabManager(
 
     private fun notify(tabId: String) { uiListener?.onTabChanged(tabId) }
 
-    private fun launchIo(crossinline block: suspend () -> Unit) {
+    private fun launchIo(block: suspend () -> Unit) {
         CoroutineScope(Dispatchers.IO).launch {
             try { block() } catch (e: Exception) { Log.w(TAG, "delegate update", e) }
         }
