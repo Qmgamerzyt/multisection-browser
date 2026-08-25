@@ -154,19 +154,19 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun goBack(tabId: String) {
+    suspend fun goBack(tabId: String) {
         tabManager.goBack(tabId)
     }
 
-    fun goForward(tabId: String) {
+    suspend fun goForward(tabId: String) {
         tabManager.goForward(tabId)
     }
 
-    fun reload(tabId: String) {
+    suspend fun reload(tabId: String) {
         tabManager.reload(tabId)
     }
 
-    fun stop(tabId: String) {
+    suspend fun stop(tabId: String) {
         tabManager.stop(tabId)
     }
 

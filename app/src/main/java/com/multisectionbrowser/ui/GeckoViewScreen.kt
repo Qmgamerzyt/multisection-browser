@@ -1,13 +1,11 @@
 package com.multisectionbrowser.ui
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.util.AttributeSet
 import android.util.Log
-import android.view.View
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,8 +48,8 @@ fun GeckoViewScreen(
         modifier = modifier.fillMaxSize()
     )
 
-    // Observe GeckoSession events
-    androidx.compose.runtime.DisposableEffect(geckoSession) {
+    // Observe GeckoSession lifecycle
+    DisposableEffect(geckoSession) {
         if (geckoSession != null) {
             val observer = LifecycleEventObserver { _, event ->
                 when (event) {
@@ -74,16 +72,18 @@ fun GeckoViewScreen(
         }
     }
 
-    // Set up delegates
-    androidx.compose.runtime.DisposableEffect(geckoSession) {
-        geckoSession?.apply {
-            progressDelegate = object : GeckoSession.ProgressDelegate() {
+    // Set up delegates using GeckoSession API
+    DisposableEffect(geckoSession) {
+        geckoSession?.let { session ->
+            // Progress delegate
+            session.progressDelegate = object : GeckoSession.ProgressDelegate() {
                 override fun onProgressChange(session: GeckoSession, progress: Int) {
                     onLoadingChanged(progress < 100)
                 }
             }
 
-            navigationDelegate = object : GeckoSession.NavigationDelegate() {
+            // Navigation delegate
+            session.navigationDelegate = object : GeckoSession.NavigationDelegate() {
                 override fun onLocationChange(session: GeckoSession, uri: String) {
                     onUrlChanged(uri)
                 }
@@ -91,25 +91,12 @@ fun GeckoViewScreen(
                 override fun onTitleChange(session: GeckoSession, title: String) {
                     onTitleChanged(title)
                 }
-
-                override fun onCanGoBackChange(session: GeckoSession, canGoBack: Boolean) {
-                    onCanGoBackChanged(canGoBack)
-                }
-
-                override fun onCanGoForwardChange(session: GeckoSession, canGoForward: Boolean) {
-                    onCanGoForwardChanged(canGoForward)
-                }
-            }
-
-            contentDelegate = object : GeckoSession.ContentDelegate() {
-                // onFavicon not available in this GeckoView version
             }
         }
         onDispose {
-            geckoSession?.apply {
-                progressDelegate = null
-                navigationDelegate = null
-                contentDelegate = null
+            geckoSession?.let { session ->
+                session.progressDelegate = null
+                session.navigationDelegate = null
             }
         }
     }
