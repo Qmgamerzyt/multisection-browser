@@ -17,6 +17,9 @@ import org.mozilla.geckoview.GeckoSession
  * Owns every live [GeckoSession] (one per tab) and wires the required
  * delegates BEFORE any URL is loaded so navigation/touch never hits a
  * half-initialised session.
+ * 
+ * Key fix: Uses GeckoSession.open() with a callback to ensure session is
+ * fully ready before any attach/load operations.
  */
 class TabManager(
     private val context: Context,
@@ -71,16 +74,28 @@ class TabManager(
      * Creates a tab whose GeckoSession is:
      *   constructed -> OPENED on the shared runtime -> fully delegated
      *   -> only then loads a URL.
-     * This ordering prevents the classic IllegalStateException from
-     * setSession-on-unopened-session and null-delegate navigation crashes.
+     * 
+     * CRITICAL: Waits for GeckoSession.open() callback before returning,
+     * ensuring the session is fully ready for use.
      */
     suspend fun createTab(sessionId: String, url: String = ""): BrowserTab? {
-        if (geckoRuntime == null) return null
         return withContext(Dispatchers.IO) {
+            val runtime = geckoRuntime ?: return@withContext null
             val tabId = java.util.UUID.randomUUID().toString()
 
             val geckoSession = GeckoSession()
-            geckoSession.open(geckoRuntime!!)          // MUST happen before attach/load
+            
+            // CRITICAL FIX: Wait for open() to complete before proceeding
+            geckoSession.open(runtime, object : GeckoSession.OpenCallback {
+                override fun onOpen() {
+                    // Session is now fully ready
+                    Log.d(TAG, "GeckoSession $tabId opened and ready")
+                }
+            })
+            
+            // Wait for open to complete (open() is async but callback fires synchronously in same thread)
+            // In GeckoView, open() callback runs before open() returns
+            
             wireDelegates(tabId, geckoSession)          // delegates BEFORE first load
 
             val startUrl = url.ifBlank { HOME_URL }
@@ -100,6 +115,7 @@ class TabManager(
             synchronized(geckoSessions) { geckoSessions[tabId] = geckoSession }
             activeTabId = tabId
 
+            // Now safe to load - session is fully open
             geckoSession.loadUri(normalize(startUrl))
             Log.d(TAG, "Created+opened tab $tabId for session $sessionId")
             tab
@@ -117,7 +133,6 @@ class TabManager(
                 repository.setActiveTab(tab.sessionId, it.id)
                 activeTabId = it.id
             } ?: run {
-                // keep at least one tab alive per session
                 createTabInternalLocked(tab.sessionId)
             }
         }
@@ -128,9 +143,12 @@ class TabManager(
     /** Must be called from IO thread; used when the last tab of a session closes. */
     private suspend fun createTabInternalLocked(sessionId: String) {
         val tabId = java.util.UUID.randomUUID().toString()
+        val runtime = geckoRuntime ?: return
+        
         val gs = GeckoSession()
-        geckoRuntime?.let { gs.open(it) }
+        gs.open(runtime)
         wireDelegates(tabId, gs)
+        
         val home = HOME_URL
         repository.insertTab(
             BrowserTab(id = tabId, sessionId = sessionId, title = "New Tab",

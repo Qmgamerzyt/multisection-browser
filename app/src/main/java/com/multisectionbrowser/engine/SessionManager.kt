@@ -25,28 +25,29 @@ class SessionManager(private val context: Context) {
     }
 
     init {
-        initializeDefaultSession()
+        // Start initialization on IO thread - don't block
+        CoroutineScope(Dispatchers.IO).launch {
+            initializeDefaultSession()
+        }
     }
 
     private fun initializeDefaultSession() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val activeSession = repository.getActiveSession()
-            if (activeSession == null) {
-                val profileDir = "${context.filesDir.absolutePath}/profiles/default"
-                ensureProfileDir(profileDir)
-                val session = BrowserSession(
-                    id = "default",
-                    name = DEFAULT_SESSION_NAME,
-                    profileDir = profileDir,
-                    isActive = true
-                )
-                repository.insertSession(session)
-                activeSessionId = "default"
-            } else {
-                activeSessionId = activeSession.id
-            }
-            repository.initializeSessionExtensionSettings("default")
+        val activeSession = repository.getActiveSession()
+        if (activeSession == null) {
+            val profileDir = "${context.filesDir.absolutePath}/profiles/default"
+            ensureProfileDir(profileDir)
+            val session = BrowserSession(
+                id = "default",
+                name = DEFAULT_SESSION_NAME,
+                profileDir = profileDir,
+                isActive = true
+            )
+            repository.insertSession(session)
+            activeSessionId = "default"
+        } else {
+            activeSessionId = activeSession.id
         }
+        repository.initializeSessionExtensionSettings("default")
     }
 
     private fun ensureProfileDir(profileDir: String) {
@@ -133,11 +134,11 @@ class SessionManager(private val context: Context) {
     suspend fun clearSessionStorage(sessionId: String): Boolean {
         val runtime = geckoRuntime ?: return false
         return withContext(Dispatchers.IO) {
-            // GV129 StorageController exposes clearData(flags); FLAG_ALL wipes everything.
             runtime.storageController.clearData(org.mozilla.geckoview.StorageController.ClearFlags.ALL)
             true
         }
     }
+    
     suspend fun renameSession(sessionId: String, newName: String): Boolean {
         val session = repository.getSession(sessionId)?.toDomain() ?: return false
         repository.insertSession(session.copy(name = newName))

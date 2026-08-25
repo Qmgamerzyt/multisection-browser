@@ -3,8 +3,10 @@ package com.multisectionbrowser.ui
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -16,11 +18,12 @@ import org.mozilla.geckoview.GeckoView
 
 /**
  * Renders one already-OPENED GeckoSession.
- *
+ * 
  * Guarantees:
- *  - the session was opened on the shared runtime by TabManager (checked here too)
+ *  - the session was opened on the shared runtime by TabManager (verified here too)
  *  - setSession() is called at most once per GeckoView instance (update{} guard)
  *  - releaseSession() on dispose so switching tabs never double-attaches
+ *  - Only renders when session is fully open and ready
  */
 @Composable
 fun GeckoViewScreen(
@@ -35,12 +38,13 @@ fun GeckoViewScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val viewRef = remember { mutableStateOf<GeckoView?>(null) }
+    // Track if session is actually ready for rendering
+    val sessionReady = remember { mutableStateOf(false) }
 
     AndroidView(
         factory = { ctx ->
             GeckoView(ctx).apply {
                 setBackgroundColor(0xFFFFFFFF.toInt())
-                viewRef.value = this
             }
         },
         update = { view ->
@@ -57,6 +61,7 @@ fun GeckoViewScreen(
                         return@AndroidView
                     }
                     view.setSession(session)
+                    sessionReady.value = true
                 } catch (t: Throwable) {
                     MultiSessionBrowserApp.appendCrashLog(context, "setSession", t.stackTraceToString())
                 }

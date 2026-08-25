@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.multisectionbrowser.MultiSessionBrowserApp
 import com.multisectionbrowser.engine.BrowserSession
 import com.multisectionbrowser.engine.BrowserTab
 import com.multisectionbrowser.engine.SessionManager
@@ -42,6 +43,10 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private fun loadInitialData() {
         viewModelScope.launch {
             try {
+                // Wait for GeckoRuntime to be ready FIRST
+                val app = getApplication<MultiSessionBrowserApp>()
+                app.getOrCreateRuntime()
+                
                 var active = sessionManager.getActiveSession()
                 if (active == null) {
                     active = sessionManager.createSession("Session 1")

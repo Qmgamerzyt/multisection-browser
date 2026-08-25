@@ -1,11 +1,11 @@
 package com.multisectionbrowser.ui
 
 import android.os.Bundle
+import androidx.core.splashscreen.SplashScreenCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,14 +41,22 @@ import com.multisectionbrowser.viewmodel.BrowserViewModel
 
 class MainActivity : ComponentActivity() {
     private val viewModel: BrowserViewModel by viewModels()
+    private var splashScreenDismissed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // CRITICAL: Install SplashScreen IMMEDIATELY - before super.onCreate()
+        // Using SplashScreenCompat for API 21+ compatibility
+        val splashScreen = SplashScreenCompat.installSplashScreen(this)
+        splashScreen.setKeepOnScreenCondition { 
+            // Keep splash until we explicitly dismiss it
+            !splashScreenDismissed
+        }
         super.onCreate(savedInstanceState)
         setContent { App() }
     }
 
     @Composable
-    private fun App() = MultiSectionTheme { BrowserScreen(viewModel) }
+    private fun App() = MultiSectionTheme { BrowserScreen() }
 }
 
 /* ------------------------------- theme ---------------------------------- */
@@ -72,7 +80,7 @@ fun MultiSectionTheme(content: @Composable () -> Unit) {
 /* ------------------------------- screen --------------------------------- */
 
 @Composable
-fun BrowserScreen(viewModel: BrowserViewModel) {
+fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val booted by viewModel.booted.observeAsState(initial = false)
     val sessions by viewModel.sessions.observeAsState(initial = emptyList())
     val activeSession by viewModel.activeSession.observeAsState(initial = null)

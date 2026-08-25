@@ -2,28 +2,95 @@ package com.multisectionbrowser
 
 import android.app.Application
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
 import java.io.File
 
 class MultiSessionBrowserApp : Application() {
 
+    /** 
+     * Volatile for safe publication across threads.
+     * Initialized lazily on first access via getOrCreateRuntime().
+     */
+    @Volatile
     var geckoRuntime: GeckoRuntime? = null
         private set
+
+    /** Tracks initialization state for splash coordination */
+    @Volatile
+    var runtimeReady: Boolean = false
+        private set
+
+    /** Completable for awaiting runtime readiness */
+    private var runtimeReadyCallback: ((GeckoRuntime) -> Unit)? = null
 
     override fun onCreate() {
         super.onCreate()
         installCrashCapture()
-
-        val settings = GeckoRuntimeSettings.Builder()
-            .javaScriptEnabled(true)
-            .build()
-        // ONE runtime for the whole app — never per tab/session.
-        geckoRuntime = GeckoRuntime.create(this, settings)
+        
+        // Start GeckoRuntime creation ASYNCHRONOUSLY - don't block main thread!
+        CoroutineScope(Dispatchers.IO).launch {
+            initializeRuntimeAsync()
+        }
     }
 
-    /** Writes every uncaught stack trace to a readable file so phone-only
-     *  debugging is possible: Android/data/com.multisectionbrowser/files/last_crash.txt */
+    private fun initializeRuntimeAsync() {
+        try {
+            val settings = GeckoRuntimeSettings.Builder()
+                .javaScriptEnabled(true)
+                .build()
+            
+            // This is the heavy call - run on IO thread
+            val runtime = GeckoRuntime.create(this, settings)
+            
+            // Publish safely
+            geckoRuntime = runtime
+            runtimeReady = true
+            
+            // Notify any waiters
+            runtimeReadyCallback?.let { callback ->
+                callback(runtime)
+                runtimeReadyCallback = null
+            }
+            
+            Log.d("MultiSessionBrowser", "GeckoRuntime initialized successfully")
+        } catch (e: Exception) {
+            Log.e("MultiSessionBrowser", "GeckoRuntime init failed", e)
+            // Still mark ready to avoid deadlock, but log error
+            runtimeReady = true
+        }
+    }
+
+    /**
+     * Gets the GeckoRuntime, initializing if needed.
+     * If runtime isn't ready yet, suspends until it's ready.
+     */
+    suspend fun getOrCreateRuntime(): GeckoRuntime {
+        if (runtimeReady && geckoRuntime != null) {
+            return geckoRuntime!!
+        }
+        
+        return kotlinx.coroutines.suspendCancellableCoroutine { cont ->
+            if (runtimeReady && geckoRuntime != null) {
+                cont.resume(geckoRuntime!!)
+            } else {
+                runtimeReadyCallback = { runtime ->
+                    cont.resume(runtime)
+                }
+            }
+        }
+    }
+
+    /** Checks if runtime is ready without suspending */
+    fun isRuntimeReady(): Boolean = runtimeReady
+
+    /** Gets runtime if ready, null otherwise (non-blocking) */
+    fun getRuntimeIfReady(): GeckoRuntime? = if (runtimeReady) geckoRuntime else null
+
+    /** Writes every uncaught stack trace to a readable file for phone-only debugging */
     private fun installCrashCapture() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
@@ -31,7 +98,7 @@ class MultiSessionBrowserApp : Application() {
                 val dir = getExternalFilesDir(null) ?: filesDir
                 File(dir, "last_crash.txt").writeText(
                     "Thread: ${thread.name}\n\n" +
-                        Log.getStackTraceString(throwable)
+                        android.util.Log.getStackTraceString(throwable)
                 )
             } catch (_: Exception) { }
             previous?.uncaughtException(thread, throwable)
