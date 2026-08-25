@@ -205,7 +205,7 @@ class TabManager(
     suspend fun clearTabStorage(tabId: String): Boolean {
         val runtime = geckoRuntime ?: return false
         return withContext(Dispatchers.IO) {
-            runtime.storageController.clearData(StorageController.ALL)
+            runtime.storageController.clearData(StorageController.ClearFlags.ALL)
             Log.d(TAG, "Cleared storage for tab context: $tabId")
             true
         }

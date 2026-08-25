@@ -134,7 +134,7 @@ class SessionManager(private val context: Context) {
         val runtime = geckoRuntime ?: return false
         return withContext(Dispatchers.IO) {
             // GV129 StorageController exposes clearData(flags); FLAG_ALL wipes everything.
-            runtime.storageController.clearData(org.mozilla.geckoview.StorageController.ALL)
+            runtime.storageController.clearData(StorageController.ClearFlags.ALL)
             true
         }
     }
