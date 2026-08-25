@@ -20,7 +20,7 @@ A custom Android web browser with **multiple isolated sessions** (like separate 
 | 6 | Per-session extension enable/disable matrix + trigger modes | ✅ Done |
 | 7 | Header hide/show with draggable floating ball | ✅ Done |
 | 8 | Omnibox JS/URL script compiler (Chrome-style two-option prompt) | ✅ Done |
-| - | GitHub Actions workflow for cloud APK build | ✅ Done |
+| - | GitHub Actions workflow for cloud APK build | ✅ **GREEN — APK artifact live** |
 
 ---
 
@@ -214,3 +214,11 @@ git push origin main
 **Language**: Kotlin 1.9.22  
 **Build**: Gradle 8.5 (Kotlin DSL)  
 **Engine**: GeckoView 129.0.20240819150008
+---
+
+## CLOUD BUILD STATUS (final update)
+
+- Workflow: `.github/workflows/build.yml` → **PASSED** ✅
+- Run: https://github.com/Qmgamerzyt/multisection-browser/actions/runs/32836988524
+- Artifact: `app-debug` (~298 MB zipped incl. GeckoView native libs)
+- Final pinned stack: Gradle 8.5 · AGP 8.3.0 · Kotlin 1.9.20 · Compose Compiler 1.5.6 · Compose libs 1.5.0 · Material3 1.1.0 · GeckoView 129.0.20240819150008
