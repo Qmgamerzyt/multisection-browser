@@ -21,15 +21,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.Weight
 import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.gestures.rememberScrollState
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Error as ErrorIcon
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Tab
@@ -193,7 +193,7 @@ fun CrashScreen(error: Throwable, onRetry: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     Box(Modifier.fillMaxSize().background(Color(0xFF1A1A1A)).padding(24.dp), contentAlignment = Alignment.Center) {
         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(imageVector = ErrorIcon, contentDescription = "Error", tint = Color.Red, modifier = Modifier.size(64.dp))
+            Icon(imageVector = Icons.Filled.Error, contentDescription = "Error", tint = Color.Red, modifier = Modifier.size(64.dp))
             Spacer(Modifier.height(16.dp))
             Text(text = "App Crashed", style = MaterialTheme.typography.headlineMedium, color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Spacer(Modifier.height(8.dp))
