@@ -286,6 +286,8 @@ private fun BottomButton(
     }
 }
 
+/* ------------------------------- CrashScreen --------------------------------- */
+
 @Composable
 fun CrashScreen(
     error: Throwable,
