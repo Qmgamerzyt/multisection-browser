@@ -5,6 +5,12 @@ plugins {
     id("kotlin-parcelize")
 }
 
+repositories {
+    google()
+    mavenCentral()
+    maven("https://maven.mozilla.org/maven2/")
+}
+
 android {
     namespace = "com.multisectionbrowser"
     compileSdk = 34
