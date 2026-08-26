@@ -17,16 +17,21 @@ class MultiSessionBrowserApp : Application() {
      */
     @Volatile
     var geckoRuntime: GeckoRuntime? = null
-        private set
+        public set
 
     /** Tracks initialization state for splash coordination */
     @Volatile
     var runtimeReady: Boolean = false
-        private set
+        public set
 
     /** Simple lock state for synchronizing runtime access */
     @Volatile
     private var runtimeLock: Boolean = false
+
+    /** Store last initialization error for crash screen */
+    @Volatile
+    var lastInitError: Throwable? = null
+        public set
 
     override fun onCreate() {
         super.onCreate()
@@ -59,11 +64,6 @@ class MultiSessionBrowserApp : Application() {
             lastInitError = e
         }
     }
-
-    /** Store last initialization error for crash screen */
-    @Volatile
-    var lastInitError: Throwable? = null
-        private set
 
     /**
      * Gets the GeckoRuntime, initializing if needed.
