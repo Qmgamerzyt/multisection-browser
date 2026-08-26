@@ -392,153 +392,9 @@ fun CrashScreen(
 
 /* ------------------------------- screen --------------------------------- */
 
-@Composable
-fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
-    val booted by viewModel.booted.observeAsState(initial = false)
-    val sessions by viewModel.sessions.observeAsState(initial = emptyList())
-    val activeSession by viewModel.activeSession.observeAsState(initial = null)
-    val tabs by viewModel.tabs.observeAsState(initial = emptyList())
-    val activeTab by viewModel.activeTab.observeAsState(initial = null)
-    
-    // Get app instance for crash info
-    val app = (androidx.compose.ui.platform.LocalContext.current as android.content.Context).applicationContext as MultiSessionBrowserApp
-    val initError by remember { mutableStateOf(app.getLastInitError()) }
-    
-    var showTabs by remember { mutableStateOf(false) }
-    var showSessions by remember { mutableStateOf(false) }
-    var showScript by remember { mutableStateOf(false) }
 
-    Surface(color = MaterialTheme.colorScheme.background,
-            modifier = Modifier.fillMaxSize()) {
-
-        // Show crash screen if there's an initialization error
-        if (initError != null) {
-            CrashScreen(error = initError!!, onRetry = {
-                // Retry initialization
-                val app = (androidx.compose.ui.platform.LocalContext.current as android.content.Context).applicationContext as MultiSessionBrowserApp
-                app.lastInitError = null
-                app.runtimeReady = false
-                app.geckoRuntime = null
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                    app.initializeRuntimeAsync()
-                }
-            })
-            return@Surface
-        }
-
-        if (!booted) {
-            // (A/6) splash gate — no blank white flash while DB/session restore runs
-            Splash()
-            return@Surface
-        }
-
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-
-            Column(Modifier.fillMaxSize()) {
-
-                AddressBar(
-                    url = activeTab?.url.orEmpty(),
-                    isLoading = activeTab?.isLoading ?: false,
-                    progress = 60, // GV gives coarse progress; bar shows activity state
-                    canGoBack = activeTab?.canGoBack ?: false,
-                    canGoForward = activeTab?.canGoForward ?: false,
-                    onBack = viewModel::goBack,
-                    onForward = viewModel::goForward,
-                    onReload = viewModel::reload,
-                    onSubmit = viewModel::submitUrl
-                )
-
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .background(Color.White)
-                ) {
-                    val gs = viewModel.getGeckoSession(activeTab?.id)
-                    if (gs != null && gs.isOpen) {
-                        GeckoViewScreen(
-                            geckoSession = gs,
-                            onTitleChanged = viewModel::onTitleChanged,
-                            onUrlChanged = viewModel::onUrlChanged,
-                            onLoadingChanged = viewModel::onLoadingChanged,
-                            onCanGoBackChanged = viewModel::onCanGoBack,
-                            onCanGoForwardChanged = viewModel::onCanGoForward,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        // Show loading indicator while session opens
-                        Box(
-                            Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                }
-
-                BottomBar(
-                    onTabsClick = { showTabs = true },
-                    onSessionsClick = { showSessions = true },
-                    onMenuClick = { showScript = true }
-                )
-            }
-
-            // ---- overlays: two SEPARATE switcher pages (Chrome-style) ----
-            if (showTabs) {
-                TabSwitcherOverlay(
-                    tabs = tabs.filter { it.sessionId == activeSession?.id },
-                    activeTabId = activeTab?.id,
-                    onSwitch = viewModel::switchTab,
-                    onClose = viewModel::closeTab,
-                    onNewTab = { viewModel.createTab(); showTabs = false },
-                    onDismiss = { showTabs = false }
-                )
-            }
-            if (showSessions) {
-                SessionSwitcherOverlay(
-                    sessions = sessions,
-                    activeSessionId = activeSession?.id,
-                    onSwitch = viewModel::switchSession,
-                    onNewSession = {
-                        viewModel.createSession("Session ${sessions.size + 1}")
-                        showSessions = false
-                    },
-                    onRename = viewModel::renameSession,
-                    onDelete = viewModel::deleteSession,
-                    onDismiss = { showSessions = false }
-                )
-            }
-            ScriptRunnerDialog(
-                isOpen = showScript,
-                onDismiss = { showScript = false },
-                onRunUrl = { input ->
-                    if (input.startsWith("javascript:", true)) viewModel.runJs(input)
-                    else viewModel.submitUrl(input)
-                    showScript = false
-                },
-                onRunJs = { js -> viewModel.runJs(js); showScript = false }
-            )
-        }
-    }
-}
-
-@Composable
-private fun Splash() {
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-        contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("MultiSection",
-                 style = MaterialTheme.typography.headlineMedium,
-                 color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(16.dp))
-            CircularProgressIndicator()
-        }
-    }
-}
 
 /** Minimal bottom toolbar: exactly the two labelled buttons + menu. */
-@Composable
-private fun BottomBar(
     onTabsClick: () -> Unit,
     onSessionsClick: () -> Unit,
     onMenuClick: () -> Unit
@@ -557,8 +413,6 @@ private fun BottomBar(
     }
 }
 
-@Composable
-private fun BottomButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
