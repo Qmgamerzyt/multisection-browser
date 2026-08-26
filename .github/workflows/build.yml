@@ -24,9 +24,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          api-level: 34
-          ndk-version: r27c
-          emulator: false
+          packages: 'platforms;android-34,build-tools;34.0.0,platform-tools'
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
