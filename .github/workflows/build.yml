@@ -30,7 +30,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build Debug APK (no cache)
-        run: ./gradlew assembleDebug --no-daemon --no-build-cache
+        run: ./gradlew assembleDebug --no-daemon
 
       - name: Verify APK (size, ABIs, signing schemes)
         run: |
