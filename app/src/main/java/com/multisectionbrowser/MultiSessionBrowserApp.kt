@@ -56,8 +56,15 @@ class MultiSessionBrowserApp : Application() {
             Log.e("MultiSessionBrowser", "GeckoRuntime init failed", e)
             // Still mark ready to avoid deadlock
             runtimeReady = true
+            // Store the error for crash screen
+            lastInitError = e
         }
     }
+
+    /** Store last initialization error for crash screen */
+    @Volatile
+    var lastInitError: Throwable? = null
+        private set
 
     /**
      * Gets the GeckoRuntime, initializing if needed.
@@ -104,6 +111,9 @@ class MultiSessionBrowserApp : Application() {
 
     /** Gets runtime if ready, null otherwise (non-blocking) */
     fun getRuntimeIfReady(): GeckoRuntime? = if (runtimeReady) geckoRuntime else null
+
+    /** Gets last initialization error */
+    fun getLastInitError(): Throwable? = lastInitError
 
     /** Writes every uncaught stack trace to a readable file for phone-only debugging */
     private fun installCrashCapture() {
