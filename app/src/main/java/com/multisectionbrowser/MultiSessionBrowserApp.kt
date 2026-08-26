@@ -56,7 +56,6 @@ class MultiSessionBrowserApp : Application() {
             Log.e("MultiSessionBrowser", "GeckoRuntime init failed", e)
             // Still mark ready to avoid deadlock
             runtimeReady = true
-            // Store the error for crash screen
             lastInitError = e
         }
     }
