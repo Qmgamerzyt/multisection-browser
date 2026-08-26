@@ -243,7 +243,48 @@ private fun Splash() {
     }
 }
 
-/* ------------------------------- screen --------------------------------- */
+/** Minimal bottom toolbar: exactly the two labelled buttons + menu. */
+@Composable
+private fun BottomBar(
+    onTabsClick: () -> Unit,
+    onSessionsClick: () -> Unit,
+    onMenuClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        BottomButton(Icons.Filled.Apps, "Tabs", onTabsClick, Modifier.weight(1f))
+        BottomButton(Icons.Filled.Person, "Sessions", onSessionsClick, Modifier.weight(1f))
+        BottomButton(Icons.Filled.Build, "Menu", onMenuClick, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun BottomButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .padding(vertical = 2.dp)
+    ) {
+        Icon(icon, label, tint = MaterialTheme.colorScheme.secondary,
+             modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(2.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall,
+             color = MaterialTheme.colorScheme.secondary)
+    }
+}
 
 @Composable
 fun CrashScreen(
