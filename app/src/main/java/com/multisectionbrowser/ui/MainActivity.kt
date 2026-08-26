@@ -1,5 +1,8 @@
 package com.multisectionbrowser.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
 import androidx.core.splashscreen.SplashScreenCompat
 import androidx.activity.ComponentActivity
@@ -17,6 +20,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.gestures.rememberScrollState
+import androidx.compose.foundation.layout.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Build
@@ -26,9 +34,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -225,6 +236,7 @@ fun CrashScreen(
     onRetry: () -> Unit
 ) {
     val errorText = error.stackTraceToString()
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     Box(
         Modifier
@@ -266,7 +278,7 @@ fun CrashScreen(
             Spacer(Modifier.height(16.dp))
             
             // Scrollable stack trace
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
@@ -280,7 +292,7 @@ fun CrashScreen(
                         .padding(16.dp)
                 ) {
                     Text(
-                        text = errorText,
+                        text = error.stackTraceToString(),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                         ),
@@ -298,24 +310,24 @@ fun CrashScreen(
                 androidx.compose.material3.OutlinedButton(
                     onClick = {
                         // Copy to clipboard
-                        android.content.ClipboardManager clipboard = 
-                            androidx.compose.ui.platform.LocalContext.current.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Crash Log", errorText))
-            },
-            modifier = Modifier.weight(1f)
-        ) {
-            Text("Copy Log")
-        }
-        
-        androidx.compose.material3.Button(
-            onClick = { /* Retry is handled by parent */ },
-            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                containerColor = androidx.compose.ui.graphics.Color(0xFF1A73E8)
-            ),
-            modifier = Modifier.weight(1f)
-        ) {
-            Text("Retry", color = Color.White)
-        }
+                        val clipboard = androidx.compose.ui.platform.LocalContext.current.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", error.stackTraceToString()))
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Copy Log")
+                }
+                
+                Button(
+                    onClick = { /* Retry is handled by parent */ },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1A73E8)
+                    ),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Retry", color = Color.White)
+                }
+            }
         }
     }
 }
@@ -342,8 +354,8 @@ fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.com
             modifier = Modifier.fillMaxSize()) {
 
         // Show crash screen if there's an initialization error
-        if (app.getLastInitError() != null) {
-            CrashScreen(error = app.getLastInitError()!!, onRetry = {
+        if (initError != null) {
+            CrashScreen(error = initError!!, onRetry = {
                 // Retry initialization
                 val app = (androidx.compose.ui.platform.LocalContext.current as android.content.Context).applicationContext as MultiSessionBrowserApp
                 app.lastInitError = null
