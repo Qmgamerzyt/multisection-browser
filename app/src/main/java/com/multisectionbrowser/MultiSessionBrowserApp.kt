@@ -43,7 +43,7 @@ class MultiSessionBrowserApp : Application() {
         }
     }
 
-    private fun initializeRuntimeAsync() {
+    fun initializeRuntimeAsync() {
         try {
             val settings = GeckoRuntimeSettings.Builder()
                 .javaScriptEnabled(true)
@@ -113,6 +113,22 @@ class MultiSessionBrowserApp : Application() {
 
     /** Gets last initialization error */
     fun getLastInitError(): Throwable? = lastInitError
+
+    /** Retries runtime initialization after a failure */
+    fun retryInit() {
+        lastInitError = null
+        runtimeReady = false
+        geckoRuntime = null
+        CoroutineScope(Dispatchers.IO).launch { initializeRuntimeAsync() }
+    }
+
+    /** Extension to get full stack trace as string */
+    fun Throwable.stackTraceToString(): String {
+        val sw = java.io.StringWriter()
+        val pw = java.io.PrintWriter(sw)
+        printStackTrace(pw)
+        return sw.toString()
+    }
 
     /** Writes every uncaught stack trace to a readable file for phone-only debugging */
     private fun installCrashCapture() {

@@ -59,6 +59,51 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+@Composable
+private fun BottomBar(
+    onTabsClick: () -> Unit,
+    onSessionsClick: () -> Unit,
+    onMenuClick: () -> Unit
+) {
+    val tabIcon = androidx.compose.material.icons.Icons.Filled.Tab
+    val sessionIcon = androidx.compose.material.icons.Icons.Filled.Apps
+    val menuIcon = androidx.compose.material.icons.Icons.Filled.MoreVert
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceAround
+    ) {
+        BottomButton(tabIcon, "Tabs", onTabsClick, Modifier.weight(1f))
+        BottomButton(sessionIcon, "Sessions", onSessionsClick, Modifier.weight(1f))
+        BottomButton(menuIcon, "Menu", onMenuClick, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun BottomButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .fillMaxSize()
+            .padding(vertical = 2.dp)
+    ) {
+        Icon(icon, label, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(2.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+    }
+}
+
 class MainActivity : ComponentActivity() {
     private val viewModel: BrowserViewModel by viewModels()
     private var splashScreenDismissed = false
@@ -109,10 +154,7 @@ fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.com
         if (initError != null) {
             CrashScreen(error = initError!!, onRetry = {
                 val app = (androidx.compose.ui.platform.LocalContext.current as android.content.Context).applicationContext as MultiSessionBrowserApp
-                app.lastInitError = null
-                app.runtimeReady = false
-                app.geckoRuntime = null
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { app.initializeRuntimeAsync() }
+                app.retryInit()
             })
             return@Surface
         }
@@ -149,15 +191,12 @@ fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.com
             Spacer(Modifier.height(8.dp))
             Text(text = error.message ?: error.toString(), style = MaterialTheme.typography.bodyLarge, color = Color(0xFFCCCCCC), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Spacer(Modifier.height(16.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF2A2A2A)).padding(16.dp)) { androidx.compose.foundation.layout.Column(modifier = Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.gestures.rememberScrollState()).padding(16.dp)) { Text(text = error.stackTraceToString(), style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace), color = Color(0xFF88CC88)) } }
+            Box(modifier = Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF2A2A2A)).padding(16.dp)) { Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) { Text(text = error.stackTraceToString(), style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace), color = Color(0xFF88CC88)) } }
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                androidx.compose.material3.OutlinedButton(onClick = { val clipboard = androidx.compose.ui.platform.LocalContext.current.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager; clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", error.stackTraceToString())) }, modifier = Modifier.weight(1f)) { Text("Copy Log") }
+                androidx.compose.material3.OutlinedButton(onClick = { val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager; clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", error.stackTraceToString())) }, modifier = Modifier.weight(1f)) { Text("Copy Log") }
                 Button(onClick = onRetry, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)), modifier = Modifier.weight(1f)) { Text("Retry", color = Color.White) }
             }
         }
     }
 }
-
-
-@Composable private fun BottomButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) { Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = modifier.clickable(onClick = onClick).padding(vertical = 2.dp)) { Icon(icon, label, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp)); Spacer(Modifier.height(2.dp)); Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) } }
