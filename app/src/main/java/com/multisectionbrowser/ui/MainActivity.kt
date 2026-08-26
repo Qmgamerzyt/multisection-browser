@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Weight
 import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.gestures.rememberScrollState
@@ -28,7 +29,10 @@ import androidx.compose.foundation.layout.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Error as ErrorIcon
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Tab
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -40,6 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,9 +70,6 @@ private fun BottomBar(
     onSessionsClick: () -> Unit,
     onMenuClick: () -> Unit
 ) {
-    val tabIcon = androidx.compose.material.icons.Icons.Filled.Tab
-    val sessionIcon = androidx.compose.material.icons.Icons.Filled.Apps
-    val menuIcon = androidx.compose.material.icons.Icons.Filled.MoreVert
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -77,9 +79,9 @@ private fun BottomBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        BottomButton(tabIcon, "Tabs", onTabsClick, Modifier.weight(1f))
-        BottomButton(sessionIcon, "Sessions", onSessionsClick, Modifier.weight(1f))
-        BottomButton(menuIcon, "Menu", onMenuClick, Modifier.weight(1f))
+        BottomButton(Icons.Filled.Tab, "Tabs", onTabsClick, Modifier.weight(1f))
+        BottomButton(Icons.Filled.Apps, "Sessions", onSessionsClick, Modifier.weight(1f))
+        BottomButton(Icons.Filled.MoreVert, "Menu", onMenuClick, Modifier.weight(1f))
     }
 }
 
@@ -145,17 +147,22 @@ fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.com
     
     val app = (androidx.compose.ui.platform.LocalContext.current as android.content.Context).applicationContext as MultiSessionBrowserApp
     val initError by remember { mutableStateOf(app.getLastInitError()) }
+    var retryTrigger by remember { mutableStateOf(0) }
     
     var showTabs by remember { mutableStateOf(false) }
     var showSessions by remember { mutableStateOf(false) }
     var showScript by remember { mutableStateOf(false) }
 
+    // Handle retry trigger via LaunchedEffect
+    LaunchedEffect(retryTrigger) {
+        if (retryTrigger > 0) {
+            app.retryInit()
+        }
+    }
+
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         if (initError != null) {
-            CrashScreen(error = initError!!, onRetry = {
-                val app = (androidx.compose.ui.platform.LocalContext.current as android.content.Context).applicationContext as MultiSessionBrowserApp
-                app.retryInit()
-            })
+            CrashScreen(error = initError!!, onRetry = { retryTrigger++ })
             return@Surface
         }
 
@@ -180,12 +187,13 @@ fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.com
 
 @Composable private fun Splash() { Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("MultiSection", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(16.dp)); CircularProgressIndicator() } } }
 
-@Composable fun CrashScreen(error: Throwable, onRetry: () -> Unit) {
+@Composable
+fun CrashScreen(error: Throwable, onRetry: () -> Unit) {
     val errorText = error.stackTraceToString()
     val context = androidx.compose.ui.platform.LocalContext.current
     Box(Modifier.fillMaxSize().background(Color(0xFF1A1A1A)).padding(24.dp), contentAlignment = Alignment.Center) {
         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            androidx.compose.material3.Icon(imageVector = androidx.compose.material.icons.filled.Error, contentDescription = "Error", tint = Color.Red, modifier = Modifier.size(64.dp))
+            Icon(imageVector = ErrorIcon, contentDescription = "Error", tint = Color.Red, modifier = Modifier.size(64.dp))
             Spacer(Modifier.height(16.dp))
             Text(text = "App Crashed", style = MaterialTheme.typography.headlineMedium, color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Spacer(Modifier.height(8.dp))
@@ -194,7 +202,7 @@ fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.com
             Box(modifier = Modifier.fillMaxWidth().height(300.dp).background(Color(0xFF2A2A2A)).padding(16.dp)) { Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) { Text(text = error.stackTraceToString(), style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace), color = Color(0xFF88CC88)) } }
             Spacer(Modifier.height(24.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                androidx.compose.material3.OutlinedButton(onClick = { val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager; clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", error.stackTraceToString())) }, modifier = Modifier.weight(1f)) { Text("Copy Log") }
+                OutlinedButton(onClick = { val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager; clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", error.stackTraceToString())) }, modifier = Modifier.weight(1f)) { Text("Copy Log") }
                 Button(onClick = onRetry, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8)), modifier = Modifier.weight(1f)) { Text("Retry", color = Color.White) }
             }
         }
