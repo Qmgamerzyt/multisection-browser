@@ -159,8 +159,5 @@ fun BrowserScreen(viewModel: BrowserViewModel = androidx.lifecycle.viewmodel.com
     }
 }
 
-@Composable private fun Splash() { Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text("MultiSection", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(16.dp)); CircularProgressIndicator() } } }
-
-@Composable private fun BottomBar(onTabsClick: () -> Unit, onSessionsClick: () -> Unit, onMenuClick: () -> Unit) { Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(vertical = 6.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) { BottomButton(Icons.Filled.Apps, "Tabs", onTabsClick, Modifier.weight(1f)); BottomButton(Icons.Filled.Person, "Sessions", onSessionsClick, Modifier.weight(1f)); BottomButton(Icons.Filled.Build, "Menu", onMenuClick, Modifier.weight(1f)) } }
 
 @Composable private fun BottomButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) { Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = modifier.clickable(onClick = onClick).padding(vertical = 2.dp)) { Icon(icon, label, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp)); Spacer(Modifier.height(2.dp)); Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary) } }
